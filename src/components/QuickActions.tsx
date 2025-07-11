@@ -7,25 +7,25 @@ export const QuickActions = () => {
     {
       icon: Clock,
       label: "Start Timer",
-      description: "Begin tracking work time",
+      description: "Track work time",
       color: "bg-time/10 text-time hover:bg-time/20"
     },
     {
       icon: DollarSign,
       label: "Log Earnings",
-      description: "Record completed trips",
+      description: "Record trips",
       color: "bg-earnings/10 text-earnings hover:bg-earnings/20"
     },
     {
       icon: Navigation,
-      label: "Track Mileage",
-      description: "Start mileage tracking",
+      label: "Track Miles",
+      description: "Log mileage",
       color: "bg-mileage/10 text-mileage hover:bg-mileage/20"
     },
     {
       icon: FileText,
-      label: "View Reports",
-      description: "Generate tax reports",
+      label: "Reports",
+      description: "Tax documents",
       color: "bg-primary/10 text-primary hover:bg-primary/20"
     }
   ];
