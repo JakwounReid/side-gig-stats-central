@@ -55,6 +55,12 @@ const ImportDialog = ({ isOpen, onClose, onImport }: ImportDialogProps) => {
   const parseFileContent = (content: string, filename: string): ImportPreview[] => {
     const lines = content.split('\n').filter(line => line.trim())
     
+    // Check if it's the template format (has Platform column)
+    const firstLine = lines[0]?.toLowerCase() || ''
+    if (firstLine.includes('platform')) {
+      return parseCSVFormat(lines)
+    }
+    
     // Try to detect file format
     if (filename.toLowerCase().includes('uber') || content.toLowerCase().includes('uber')) {
       return parseUberFormat(lines)
@@ -91,7 +97,8 @@ const ImportDialog = ({ isOpen, onClose, onImport }: ImportDialogProps) => {
           isValid: true
         }
       } catch (err) {
-        return createInvalidPreview('Uber', `Row ${index + 2}: ${err}`)
+        const errorMessage = err instanceof Error ? err.message : String(err)
+        return createInvalidPreview('Uber', `Row ${index + 2}: ${errorMessage}`)
       }
     }).filter(Boolean)
   }
@@ -117,7 +124,8 @@ const ImportDialog = ({ isOpen, onClose, onImport }: ImportDialogProps) => {
           isValid: true
         }
       } catch (err) {
-        return createInvalidPreview('DoorDash', `Row ${index + 2}: ${err}`)
+        const errorMessage = err instanceof Error ? err.message : String(err)
+        return createInvalidPreview('DoorDash', `Row ${index + 2}: ${errorMessage}`)
       }
     }).filter(Boolean)
   }
@@ -143,7 +151,8 @@ const ImportDialog = ({ isOpen, onClose, onImport }: ImportDialogProps) => {
           isValid: true
         }
       } catch (err) {
-        return createInvalidPreview('Lyft', `Row ${index + 2}: ${err}`)
+        const errorMessage = err instanceof Error ? err.message : String(err)
+        return createInvalidPreview('Lyft', `Row ${index + 2}: ${errorMessage}`)
       }
     }).filter(Boolean)
   }
@@ -169,7 +178,8 @@ const ImportDialog = ({ isOpen, onClose, onImport }: ImportDialogProps) => {
           isValid: true
         }
       } catch (err) {
-        return createInvalidPreview('Instacart', `Row ${index + 2}: ${err}`)
+        const errorMessage = err instanceof Error ? err.message : String(err)
+        return createInvalidPreview('Instacart', `Row ${index + 2}: ${errorMessage}`)
       }
     }).filter(Boolean)
   }
@@ -197,7 +207,8 @@ const ImportDialog = ({ isOpen, onClose, onImport }: ImportDialogProps) => {
           isValid: true
         }
       } catch (err) {
-        return createInvalidPreview('Unknown', `Row ${index + 2}: ${err}`)
+        const errorMessage = err instanceof Error ? err.message : String(err)
+        return createInvalidPreview('Unknown', `Row ${index + 2}: ${errorMessage}`)
       }
     }).filter(Boolean)
   }
@@ -213,21 +224,32 @@ const ImportDialog = ({ isOpen, onClose, onImport }: ImportDialogProps) => {
   })
 
   const parseDate = (dateStr: string): string => {
+    // Clean the date string
+    const cleanDateStr = dateStr.trim()
+    
     // Try multiple date formats
     const dateFormats = [
       /^\d{4}-\d{2}-\d{2}$/, // YYYY-MM-DD
       /^\d{2}\/\d{2}\/\d{4}$/, // MM/DD/YYYY
       /^\d{2}-\d{2}-\d{4}$/, // MM-DD-YYYY
       /^\d{1,2}\/\d{1,2}\/\d{4}$/, // M/D/YYYY
+      /^\d{1,2}\/\d{1,2}\/\d{2}$/, // M/D/YY
+      /^\d{4}\/\d{1,2}\/\d{1,2}$/, // YYYY/M/D
     ]
 
     for (const format of dateFormats) {
-      if (format.test(dateStr)) {
-        const date = new Date(dateStr)
+      if (format.test(cleanDateStr)) {
+        const date = new Date(cleanDateStr)
         if (!isNaN(date.getTime())) {
           return date.toISOString().split('T')[0]
         }
       }
+    }
+
+    // Try parsing with Date constructor directly
+    const date = new Date(cleanDateStr)
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0]
     }
 
     throw new Error(`Invalid date format: ${dateStr}`)
