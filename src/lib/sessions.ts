@@ -39,24 +39,18 @@ const fromDBSession = (dbSession: DBSessionData): SessionData => ({
 export const sessionsService = {
   // Get all sessions for a user
   async getUserSessions(userId: string): Promise<SessionData[]> {
-    console.log('Fetching sessions for user:', userId)
-    
     const { data, error } = await supabase
       .from('sessions')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
 
-    console.log('Supabase response:', { data, error })
-
     if (error) {
       console.error('Error fetching sessions:', error)
       throw error
     }
 
-    const sessions = data?.map(fromDBSession) || []
-    console.log('Processed sessions:', sessions)
-    return sessions
+    return data?.map(fromDBSession) || []
   },
 
   // Add a new session

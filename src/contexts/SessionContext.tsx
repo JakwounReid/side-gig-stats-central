@@ -58,18 +58,13 @@ export const SessionProvider = ({ children }: SessionProviderProps) => {
   }, [user?.id])
 
   const refreshSessions = async () => {
-    if (!user?.id) {
-      console.log('No user ID available, skipping session refresh')
-      return
-    }
+    if (!user?.id) return
 
-    console.log('Refreshing sessions for user:', user.id)
     setLoading(true)
     setError(null)
     
     try {
       const userSessions = await sessionsService.getUserSessions(user.id)
-      console.log('Sessions loaded:', userSessions)
       setSessions(userSessions)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load sessions'
