@@ -17,11 +17,14 @@ import { Alert, AlertDescription } from './ui/alert'
 import { getCurrentDate, formatDateString } from '@/lib/utils'
 import { exportToCSV, generateExportFilename } from '@/lib/export'
 
+type TimePeriod = 'day' | 'week' | 'month' | 'year'
+
 const Dashboard = () => {
   const { sessions, getTotalStats, getPlatformStats, getWeeklySessions, addSession, addMultipleSessions, loading, error } = useSessions()
   const [isSessionFormOpen, setIsSessionFormOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedDate, setSelectedDate] = useState(getCurrentDate())
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('day')
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
@@ -74,11 +77,53 @@ const Dashboard = () => {
     }
   }
 
-  // Get data for the selected date
-  const getStatsForDate = (date: string) => {
-    const sessionsForDate = sessions.filter(session => session.date === date)
+  // Helper function to get sessions for a specific time period
+  const getSessionsForPeriod = (period: TimePeriod, date: string) => {
+    const targetDate = new Date(date)
     
-    return sessionsForDate.reduce((acc, session) => ({
+    switch (period) {
+      case 'day':
+        return sessions.filter(session => session.date === date)
+      
+      case 'week':
+        const weekStart = new Date(targetDate)
+        weekStart.setDate(targetDate.getDate() - targetDate.getDay())
+        const weekEnd = new Date(weekStart)
+        weekEnd.setDate(weekStart.getDate() + 6)
+        
+        return sessions.filter(session => {
+          const sessionDate = new Date(session.date)
+          return sessionDate >= weekStart && sessionDate <= weekEnd
+        })
+      
+      case 'month':
+        const monthStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1)
+        const monthEnd = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0)
+        
+        return sessions.filter(session => {
+          const sessionDate = new Date(session.date)
+          return sessionDate >= monthStart && sessionDate <= monthEnd
+        })
+      
+      case 'year':
+        const yearStart = new Date(targetDate.getFullYear(), 0, 1)
+        const yearEnd = new Date(targetDate.getFullYear(), 11, 31)
+        
+        return sessions.filter(session => {
+          const sessionDate = new Date(session.date)
+          return sessionDate >= yearStart && sessionDate <= yearEnd
+        })
+      
+      default:
+        return sessions.filter(session => session.date === date)
+    }
+  }
+
+  // Get stats for the selected period
+  const getStatsForPeriod = (period: TimePeriod, date: string) => {
+    const periodSessions = getSessionsForPeriod(period, date)
+    
+    return periodSessions.reduce((acc, session) => ({
       earnings: acc.earnings + session.earnings,
       hours: acc.hours + session.hours,
       miles: acc.miles + session.miles,
@@ -86,10 +131,11 @@ const Dashboard = () => {
     }), { earnings: 0, hours: 0, miles: 0, trips: 0 })
   }
 
-  const getPlatformStatsForDate = (date: string) => {
-    const sessionsForDate = sessions.filter(session => session.date === date)
+  // Get platform stats for the selected period
+  const getPlatformStatsForPeriod = (period: TimePeriod, date: string) => {
+    const periodSessions = getSessionsForPeriod(period, date)
     
-    return sessionsForDate.reduce((acc, session) => {
+    return periodSessions.reduce((acc, session) => {
       if (!acc[session.platform]) {
         acc[session.platform] = { earnings: 0, hours: 0, trips: 0 }
       }
@@ -100,9 +146,9 @@ const Dashboard = () => {
     }, {} as { [key: string]: { earnings: number; hours: number; trips: number } })
   }
 
-  // Get real data from sessions
-  const totalStats = getStatsForDate(selectedDate)
-  const platformStats = getPlatformStatsForDate(selectedDate)
+  // Get real data from sessions using the selected period
+  const totalStats = getStatsForPeriod(selectedPeriod, selectedDate)
+  const platformStats = getPlatformStatsForPeriod(selectedPeriod, selectedDate)
   const weeklySessions = getWeeklySessions()
 
   // Calculate weekly totals
@@ -114,6 +160,17 @@ const Dashboard = () => {
   }), { earnings: 0, hours: 0, miles: 0, trips: 0 })
 
   const weeklyAvgHourly = weeklyStats.hours > 0 ? weeklyStats.earnings / weeklyStats.hours : 0
+
+  // Helper function to get period label
+  const getPeriodLabel = (period: TimePeriod) => {
+    switch (period) {
+      case 'day': return 'Day'
+      case 'week': return 'Week'
+      case 'month': return 'Month'
+      case 'year': return 'Year'
+      default: return 'Day'
+    }
+  }
 
   // Platform colors mapping
   const platformColors: { [key: string]: string } = {
@@ -159,24 +216,42 @@ const Dashboard = () => {
         <div className="mb-8">
           <DashboardHeader />
           <div className="flex justify-between items-center mt-4">
-            {/* Date Selector */}
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <select
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="bg-background border border-border rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                {availableDates.length > 0 ? (
-                  availableDates.map(date => (
-                    <option key={date} value={date}>
-                      {formatDateString(date)}
-                    </option>
-                  ))
-                ) : (
-                  <option value={getCurrentDate()}>Today</option>
-                )}
-              </select>
+            {/* Period and Date Selectors */}
+            <div className="flex items-center gap-4">
+              {/* Period Selector */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground">Period:</span>
+                <select
+                  value={selectedPeriod}
+                  onChange={(e) => setSelectedPeriod(e.target.value as TimePeriod)}
+                  className="bg-background border border-border rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="day">Day</option>
+                  <option value="week">Week</option>
+                  <option value="month">Month</option>
+                  <option value="year">Year</option>
+                </select>
+              </div>
+              
+              {/* Date Selector */}
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <select
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="bg-background border border-border rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  {availableDates.length > 0 ? (
+                    availableDates.map(date => (
+                      <option key={date} value={date}>
+                        {formatDateString(date)}
+                      </option>
+                    ))
+                  ) : (
+                    <option value={getCurrentDate()}>Today</option>
+                  )}
+                </select>
+              </div>
             </div>
             
             {/* Action Buttons */}
@@ -225,7 +300,7 @@ const Dashboard = () => {
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatsCard
-            title="Today's Earnings"
+            title={`${getPeriodLabel(selectedPeriod)}'s Earnings`}
             value={`$${totalStats.earnings.toFixed(2)}`}
             icon={DollarSign}
             iconColor="text-earnings"
@@ -269,7 +344,9 @@ const Dashboard = () => {
               </div>
             ) : (
               <Card className="bg-gradient-card shadow-card p-8 text-center">
-                <p className="text-muted-foreground">No sessions logged for this date</p>
+                <p className="text-muted-foreground">
+                  No sessions logged for this {selectedPeriod}
+                </p>
               </Card>
             )}
             
