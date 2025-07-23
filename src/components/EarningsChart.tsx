@@ -6,25 +6,24 @@ type TimePeriod = 'day' | 'week' | 'month' | 'year';
 
 interface EarningsChartProps {
   selectedPeriod: TimePeriod;
-  selectedDate: string;
 }
 
-export const EarningsChart = ({ selectedPeriod, selectedDate }: EarningsChartProps) => {
+export const EarningsChart = ({ selectedPeriod }: EarningsChartProps) => {
   const { sessions } = useSessions();
 
   // Helper function to get sessions for a specific time period
-  const getSessionsForPeriod = (period: TimePeriod, date: string) => {
-    const targetDate = new Date(date)
+  const getSessionsForPeriod = (period: TimePeriod) => {
+    const today = new Date()
+    const todayStr = today.toISOString().split('T')[0]
     
     switch (period) {
       case 'day':
-        return sessions.filter(session => session.date === date)
+        return sessions.filter(session => session.date === todayStr)
       
       case 'week':
-        const weekStart = new Date(targetDate)
-        weekStart.setDate(targetDate.getDate() - targetDate.getDay())
-        const weekEnd = new Date(weekStart)
-        weekEnd.setDate(weekStart.getDate() + 6)
+        const weekStart = new Date(today)
+        weekStart.setDate(today.getDate() - today.getDay())
+        const weekEnd = new Date(today)
         
         return sessions.filter(session => {
           const sessionDate = new Date(session.date)
@@ -32,8 +31,8 @@ export const EarningsChart = ({ selectedPeriod, selectedDate }: EarningsChartPro
         })
       
       case 'month':
-        const monthStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1)
-        const monthEnd = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0)
+        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+        const monthEnd = new Date(today)
         
         return sessions.filter(session => {
           const sessionDate = new Date(session.date)
@@ -41,8 +40,9 @@ export const EarningsChart = ({ selectedPeriod, selectedDate }: EarningsChartPro
         })
       
       case 'year':
-        const yearStart = new Date(targetDate.getFullYear(), 0, 1)
-        const yearEnd = new Date(targetDate.getFullYear(), 11, 31)
+        const yearStart = new Date(today)
+        yearStart.setDate(today.getDate() - 365)
+        const yearEnd = new Date(today)
         
         return sessions.filter(session => {
           const sessionDate = new Date(session.date)
@@ -50,12 +50,12 @@ export const EarningsChart = ({ selectedPeriod, selectedDate }: EarningsChartPro
         })
       
       default:
-        return sessions.filter(session => session.date === date)
+        return sessions.filter(session => session.date === todayStr)
     }
   }
 
   // Get sessions for the selected period
-  const periodSessions = getSessionsForPeriod(selectedPeriod, selectedDate)
+  const periodSessions = getSessionsForPeriod(selectedPeriod)
 
   // Group sessions by day and calculate totals
   const dailyData = periodSessions.reduce((acc, session) => {

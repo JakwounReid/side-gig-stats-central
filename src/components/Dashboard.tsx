@@ -12,7 +12,7 @@ import { SessionHistory } from './SessionHistory'
 import { ProfileDropdown } from './ProfileDropdown'
 import { ExportDialog } from './ExportDialog'
 import ImportDialog from './ImportDialog'
-import { DollarSign, Clock, Navigation, TrendingUp, AlertCircle, Calendar, Download, Upload } from 'lucide-react'
+import { DollarSign, Clock, Navigation, TrendingUp, AlertCircle, Download, Upload } from 'lucide-react'
 import { Alert, AlertDescription } from './ui/alert'
 import { getCurrentDate, formatDateString } from '@/lib/utils'
 import { exportToCSV, generateExportFilename } from '@/lib/export'
@@ -23,7 +23,6 @@ const Dashboard = () => {
   const { sessions, getTotalStats, getPlatformStats, getWeeklySessions, addSession, addMultipleSessions, loading, error } = useSessions()
   const [isSessionFormOpen, setIsSessionFormOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [selectedDate, setSelectedDate] = useState(getCurrentDate())
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('day')
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
@@ -34,8 +33,6 @@ const Dashboard = () => {
     try {
       await addSession(sessionData)
       setIsSessionFormOpen(false)
-      // Update selected date to show the newly logged session
-      setSelectedDate(sessionData.date)
     } catch (error) {
       console.error('Error adding session:', error)
       // Error is handled by the context
@@ -78,18 +75,18 @@ const Dashboard = () => {
   }
 
   // Helper function to get sessions for a specific time period
-  const getSessionsForPeriod = (period: TimePeriod, date: string) => {
-    const targetDate = new Date(date)
+  const getSessionsForPeriod = (period: TimePeriod) => {
+    const today = new Date()
+    const todayStr = today.toISOString().split('T')[0]
     
     switch (period) {
       case 'day':
-        return sessions.filter(session => session.date === date)
+        return sessions.filter(session => session.date === todayStr)
       
       case 'week':
-        const weekStart = new Date(targetDate)
-        weekStart.setDate(targetDate.getDate() - targetDate.getDay())
-        const weekEnd = new Date(weekStart)
-        weekEnd.setDate(weekStart.getDate() + 6)
+        const weekStart = new Date(today)
+        weekStart.setDate(today.getDate() - today.getDay())
+        const weekEnd = new Date(today)
         
         return sessions.filter(session => {
           const sessionDate = new Date(session.date)
@@ -97,8 +94,8 @@ const Dashboard = () => {
         })
       
       case 'month':
-        const monthStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1)
-        const monthEnd = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0)
+        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+        const monthEnd = new Date(today)
         
         return sessions.filter(session => {
           const sessionDate = new Date(session.date)
@@ -106,8 +103,9 @@ const Dashboard = () => {
         })
       
       case 'year':
-        const yearStart = new Date(targetDate.getFullYear(), 0, 1)
-        const yearEnd = new Date(targetDate.getFullYear(), 11, 31)
+        const yearStart = new Date(today)
+        yearStart.setDate(today.getDate() - 365)
+        const yearEnd = new Date(today)
         
         return sessions.filter(session => {
           const sessionDate = new Date(session.date)
@@ -115,13 +113,13 @@ const Dashboard = () => {
         })
       
       default:
-        return sessions.filter(session => session.date === date)
+        return sessions.filter(session => session.date === todayStr)
     }
   }
 
   // Get stats for the selected period
-  const getStatsForPeriod = (period: TimePeriod, date: string) => {
-    const periodSessions = getSessionsForPeriod(period, date)
+  const getStatsForPeriod = (period: TimePeriod) => {
+    const periodSessions = getSessionsForPeriod(period)
     
     return periodSessions.reduce((acc, session) => ({
       earnings: acc.earnings + session.earnings,
@@ -132,8 +130,8 @@ const Dashboard = () => {
   }
 
   // Get platform stats for the selected period
-  const getPlatformStatsForPeriod = (period: TimePeriod, date: string) => {
-    const periodSessions = getSessionsForPeriod(period, date)
+  const getPlatformStatsForPeriod = (period: TimePeriod) => {
+    const periodSessions = getSessionsForPeriod(period)
     
     return periodSessions.reduce((acc, session) => {
       if (!acc[session.platform]) {
@@ -147,8 +145,8 @@ const Dashboard = () => {
   }
 
   // Get real data from sessions using the selected period
-  const totalStats = getStatsForPeriod(selectedPeriod, selectedDate)
-  const platformStats = getPlatformStatsForPeriod(selectedPeriod, selectedDate)
+  const totalStats = getStatsForPeriod(selectedPeriod)
+  const platformStats = getPlatformStatsForPeriod(selectedPeriod)
   const weeklySessions = getWeeklySessions()
 
   // Calculate weekly totals
@@ -193,8 +191,7 @@ const Dashboard = () => {
     color: platformColors[name] || '#6B7280'
   }))
 
-  // Get unique dates from sessions for the date selector
-  const availableDates = [...new Set(sessions.map(s => s.date))].sort().reverse()
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
@@ -216,42 +213,19 @@ const Dashboard = () => {
         <div className="mb-8">
           <DashboardHeader />
           <div className="flex justify-between items-center mt-4">
-            {/* Period and Date Selectors */}
-            <div className="flex items-center gap-4">
-              {/* Period Selector */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-muted-foreground">Period:</span>
-                <select
-                  value={selectedPeriod}
-                  onChange={(e) => setSelectedPeriod(e.target.value as TimePeriod)}
-                  className="bg-background border border-border rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="day">Day</option>
-                  <option value="week">Week</option>
-                  <option value="month">Month</option>
-                  <option value="year">Year</option>
-                </select>
-              </div>
-              
-              {/* Date Selector */}
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <select
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="bg-background border border-border rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  {availableDates.length > 0 ? (
-                    availableDates.map(date => (
-                      <option key={date} value={date}>
-                        {formatDateString(date)}
-                      </option>
-                    ))
-                  ) : (
-                    <option value={getCurrentDate()}>Today</option>
-                  )}
-                </select>
-              </div>
+            {/* Period Selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground">Period:</span>
+              <select
+                value={selectedPeriod}
+                onChange={(e) => setSelectedPeriod(e.target.value as TimePeriod)}
+                className="bg-background border border-border rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="day">Day</option>
+                <option value="week">Week</option>
+                <option value="month">Month</option>
+                <option value="year">Year</option>
+              </select>
             </div>
             
             {/* Action Buttons */}
@@ -353,7 +327,6 @@ const Dashboard = () => {
             {/* Earnings Chart */}
             <EarningsChart 
               selectedPeriod={selectedPeriod}
-              selectedDate={selectedDate}
             />
           </div>
 
