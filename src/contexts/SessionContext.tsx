@@ -19,6 +19,7 @@ interface SessionContextType {
   loading: boolean
   error: string | null
   addSession: (session: Omit<SessionData, 'id' | 'createdAt'>) => Promise<void>
+  addMultipleSessions: (sessions: Omit<SessionData, 'id' | 'createdAt'>[]) => Promise<void>
   deleteSession: (id: string) => Promise<void>
   updateSession: (id: string, updates: Partial<Omit<SessionData, 'id' | 'createdAt'>>) => Promise<void>
   refreshSessions: () => Promise<void>
@@ -87,6 +88,24 @@ export const SessionProvider = ({ children }: SessionProviderProps) => {
       setSessions(prev => [newSession, ...prev])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add session')
+      throw err
+    }
+  }
+
+  const addMultipleSessions = async (sessionsData: Omit<SessionData, 'id' | 'createdAt'>[]) => {
+    if (!user?.id) {
+      throw new Error('User not authenticated')
+    }
+
+    setError(null)
+    
+    try {
+      const newSessions = await Promise.all(
+        sessionsData.map(sessionData => sessionsService.addSession(sessionData, user.id))
+      )
+      setSessions(prev => [...newSessions, ...prev])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to import sessions')
       throw err
     }
   }
@@ -171,6 +190,7 @@ export const SessionProvider = ({ children }: SessionProviderProps) => {
     loading,
     error,
     addSession,
+    addMultipleSessions,
     deleteSession,
     updateSession,
     refreshSessions,

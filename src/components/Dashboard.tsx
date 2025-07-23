@@ -11,18 +11,20 @@ import { SessionLogForm } from './SessionLogForm'
 import { SessionHistory } from './SessionHistory'
 import { ProfileDropdown } from './ProfileDropdown'
 import { ExportDialog } from './ExportDialog'
-import { DollarSign, Clock, Navigation, TrendingUp, AlertCircle, Calendar, Download } from 'lucide-react'
+import ImportDialog from './ImportDialog'
+import { DollarSign, Clock, Navigation, TrendingUp, AlertCircle, Calendar, Download, Upload } from 'lucide-react'
 import { Alert, AlertDescription } from './ui/alert'
 import { getCurrentDate, formatDateString } from '@/lib/utils'
 import { exportToCSV, generateExportFilename } from '@/lib/export'
 
 const Dashboard = () => {
-  const { sessions, getTotalStats, getPlatformStats, getWeeklySessions, addSession, loading, error } = useSessions()
+  const { sessions, getTotalStats, getPlatformStats, getWeeklySessions, addSession, addMultipleSessions, loading, error } = useSessions()
   const [isSessionFormOpen, setIsSessionFormOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedDate, setSelectedDate] = useState(getCurrentDate())
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
 
   const handleSessionSubmit = async (sessionData: any) => {
     setIsSubmitting(true)
@@ -56,6 +58,19 @@ const Dashboard = () => {
       console.error('Error exporting data:', error)
     } finally {
       setIsExporting(false)
+    }
+  }
+
+  const handleImportData = () => {
+    setIsImportDialogOpen(true)
+  }
+
+  const handleConfirmImport = async (sessionsData: any[]) => {
+    try {
+      await addMultipleSessions(sessionsData)
+      setIsImportDialogOpen(false)
+    } catch (error) {
+      console.error('Error importing data:', error)
     }
   }
 
@@ -166,6 +181,15 @@ const Dashboard = () => {
             
             {/* Action Buttons */}
             <div className="flex gap-3">
+              <Button 
+                onClick={handleImportData}
+                variant="outline"
+                size="lg"
+                className="border-border hover:bg-muted"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Import Data
+              </Button>
               <Button 
                 onClick={handleExportData}
                 variant="outline"
@@ -302,6 +326,13 @@ const Dashboard = () => {
         onConfirm={handleConfirmExport}
         sessions={sessions}
         isExporting={isExporting}
+      />
+
+      {/* Import Dialog */}
+      <ImportDialog
+        isOpen={isImportDialogOpen}
+        onClose={() => setIsImportDialogOpen(false)}
+        onImport={handleConfirmImport}
       />
     </div>
   )
