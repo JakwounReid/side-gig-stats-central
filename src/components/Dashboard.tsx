@@ -313,6 +313,7 @@ const Dashboard = () => {
                     hours={platform.hours}
                     trips={platform.trips}
                     color={platform.color}
+                    period={selectedPeriod}
                   />
                 ))}
               </div>

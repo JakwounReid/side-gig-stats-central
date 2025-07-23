@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+
+type TimePeriod = 'day' | 'week' | 'month' | 'year';
 
 interface PlatformCardProps {
   name: string;
@@ -9,6 +10,7 @@ interface PlatformCardProps {
   trips: number;
   color: string;
   logo?: string;
+  period?: TimePeriod;
 }
 
 export const PlatformCard = ({ 
@@ -17,11 +19,21 @@ export const PlatformCard = ({
   hours, 
   trips, 
   color,
-  logo 
+  logo,
+  period = 'day'
 }: PlatformCardProps) => {
   const hourlyRate = hours > 0 ? earnings / hours : 0;
-  const maxEarnings = 400; // For progress calculation
-  const progressPercentage = (earnings / maxEarnings) * 100;
+
+  // Helper function to get period label
+  const getPeriodLabel = (period: TimePeriod) => {
+    switch (period) {
+      case 'day': return 'today'
+      case 'week': return 'this week'
+      case 'month': return 'this month'
+      case 'year': return 'this year'
+      default: return 'today'
+    }
+  }
 
   return (
     <Card className="p-4 bg-gradient-card shadow-card hover:shadow-elevated transition-all duration-300 animate-slide-up">
@@ -37,24 +49,11 @@ export const PlatformCard = ({
         </div>
         <div className="text-right">
           <p className="text-xl font-bold text-card-foreground">${earnings}</p>
-          <p className="text-xs text-muted-foreground">today</p>
+          <p className="text-xs text-muted-foreground">{getPeriodLabel(period)}</p>
         </div>
       </div>
 
       <div className="space-y-3">
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Progress</span>
-          <span className="text-muted-foreground">{Math.round(progressPercentage)}%</span>
-        </div>
-        <Progress 
-          value={progressPercentage} 
-          className="h-2"
-          style={{ 
-            // @ts-ignore - CSS custom properties
-            '--progress-background': color 
-          }}
-        />
-        
         <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border/50">
           <div>
             <p className="text-xs text-muted-foreground">Hours</p>
