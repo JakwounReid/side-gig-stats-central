@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-type TimePeriod = 'day' | 'week' | 'month' | 'year';
+type TimePeriod = 'day' | 'week' | 'month' | 'year' | '2year' | '3year';
 
 interface PlatformCardProps {
   name: string;
@@ -31,6 +31,8 @@ export const PlatformCard = ({
       case 'week': return 'this week'
       case 'month': return 'this month'
       case 'year': return 'this year'
+      case '2year': return '2 years'
+      case '3year': return '3 years'
       default: return 'today'
     }
   }

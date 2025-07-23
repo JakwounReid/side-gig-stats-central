@@ -17,7 +17,7 @@ import { Alert, AlertDescription } from './ui/alert'
 import { getCurrentDate, formatDateString } from '@/lib/utils'
 import { exportToCSV, generateExportFilename } from '@/lib/export'
 
-type TimePeriod = 'day' | 'week' | 'month' | 'year'
+type TimePeriod = 'day' | 'week' | 'month' | 'year' | '2year' | '3year'
 
 const Dashboard = () => {
   const { sessions, getTotalStats, getPlatformStats, getWeeklySessions, addSession, addMultipleSessions, loading, error } = useSessions()
@@ -110,6 +110,26 @@ const Dashboard = () => {
         return sessions.filter(session => {
           const sessionDate = new Date(session.date)
           return sessionDate >= yearStart && sessionDate <= yearEnd
+        })
+      
+      case '2year':
+        const twoYearStart = new Date(today)
+        twoYearStart.setDate(today.getDate() - 730) // 2 years = 730 days
+        const twoYearEnd = new Date(today)
+        
+        return sessions.filter(session => {
+          const sessionDate = new Date(session.date)
+          return sessionDate >= twoYearStart && sessionDate <= twoYearEnd
+        })
+      
+      case '3year':
+        const threeYearStart = new Date(today)
+        threeYearStart.setDate(today.getDate() - 1095) // 3 years = 1095 days
+        const threeYearEnd = new Date(today)
+        
+        return sessions.filter(session => {
+          const sessionDate = new Date(session.date)
+          return sessionDate >= threeYearStart && sessionDate <= threeYearEnd
         })
       
       default:
@@ -225,6 +245,8 @@ const Dashboard = () => {
                 <option value="week">Week</option>
                 <option value="month">Month</option>
                 <option value="year">Year</option>
+                <option value="2year">2 Years</option>
+                <option value="3year">3 Years</option>
               </select>
             </div>
             
