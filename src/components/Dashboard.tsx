@@ -1,85 +1,308 @@
+import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { useSessions } from '../contexts/SessionContext'
 import { Button } from './ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
+import { DashboardHeader } from './DashboardHeader'
+import { StatsCard } from './StatsCard'
+import { PlatformCard } from './PlatformCard'
+import { EarningsChart } from './EarningsChart'
+import { SessionLogForm } from './SessionLogForm'
+import { SessionHistory } from './SessionHistory'
+import { ProfileDropdown } from './ProfileDropdown'
+import { ExportDialog } from './ExportDialog'
+import { DollarSign, Clock, Navigation, TrendingUp, AlertCircle, Calendar, Download } from 'lucide-react'
+import { Alert, AlertDescription } from './ui/alert'
+import { getCurrentDate, formatDateString } from '@/lib/utils'
+import { exportToCSV, generateExportFilename } from '@/lib/export'
 
 const Dashboard = () => {
-  const { user, signOut } = useAuth()
+  const { sessions, getTotalStats, getPlatformStats, getWeeklySessions, addSession, loading, error } = useSessions()
+  const [isSessionFormOpen, setIsSessionFormOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedDate, setSelectedDate] = useState(getCurrentDate())
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
 
-  const handleSignOut = async () => {
+  const handleSessionSubmit = async (sessionData: any) => {
+    setIsSubmitting(true)
     try {
-      await signOut()
+      await addSession(sessionData)
+      setIsSessionFormOpen(false)
+      // Update selected date to show the newly logged session
+      setSelectedDate(sessionData.date)
     } catch (error) {
-      console.error('Error signing out:', error)
+      console.error('Error adding session:', error)
+      // Error is handled by the context
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="mt-2 text-gray-600">Welcome to your dashboard!</p>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>User Profile</CardTitle>
-              <CardDescription>Your account information</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center space-x-4">
-                <Avatar className="w-16 h-16">
-                  <AvatarImage src={user?.user_metadata?.avatar_url} />
-                  <AvatarFallback>
-                    {user?.email?.charAt(0)?.toUpperCase() || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-medium text-gray-900">
-                    {user?.user_metadata?.full_name || 'User'}
-                  </p>
-                  <p className="text-sm text-gray-600">{user?.email}</p>
-                  <p className="text-xs text-gray-500">
-                    Joined: {new Date(user?.created_at || '').toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+  const handleExportData = () => {
+    setIsExportDialogOpen(true)
+  }
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Account Actions</CardTitle>
-              <CardDescription>Manage your account</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Account Status</span>
-                  <span className="text-sm text-green-600">Active</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Last Sign In</span>
-                  <span className="text-sm text-gray-600">
-                    {user?.last_sign_in_at 
-                      ? new Date(user.last_sign_in_at).toLocaleDateString()
-                      : 'N/A'}
-                  </span>
-                </div>
-                <Button 
-                  onClick={handleSignOut}
-                  variant="destructive"
-                  className="w-full"
-                >
-                  Sign Out
-                </Button>
+  const handleConfirmExport = (startDate: string, endDate: string) => {
+    setIsExporting(true)
+    try {
+      const filteredSessions = sessions.filter(session => 
+        session.date >= startDate && session.date <= endDate
+      )
+      const filename = generateExportFilename(startDate, endDate)
+      exportToCSV(filteredSessions, filename)
+      setIsExportDialogOpen(false)
+    } catch (error) {
+      console.error('Error exporting data:', error)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  // Get data for the selected date
+  const getStatsForDate = (date: string) => {
+    const sessionsForDate = sessions.filter(session => session.date === date)
+    
+    return sessionsForDate.reduce((acc, session) => ({
+      earnings: acc.earnings + session.earnings,
+      hours: acc.hours + session.hours,
+      miles: acc.miles + session.miles,
+      trips: acc.trips + 1
+    }), { earnings: 0, hours: 0, miles: 0, trips: 0 })
+  }
+
+  const getPlatformStatsForDate = (date: string) => {
+    const sessionsForDate = sessions.filter(session => session.date === date)
+    
+    return sessionsForDate.reduce((acc, session) => {
+      if (!acc[session.platform]) {
+        acc[session.platform] = { earnings: 0, hours: 0, trips: 0 }
+      }
+      acc[session.platform].earnings += session.earnings
+      acc[session.platform].hours += session.hours
+      acc[session.platform].trips += 1
+      return acc
+    }, {} as { [key: string]: { earnings: number; hours: number; trips: number } })
+  }
+
+  // Get real data from sessions
+  const totalStats = getStatsForDate(selectedDate)
+  const platformStats = getPlatformStatsForDate(selectedDate)
+  const weeklySessions = getWeeklySessions()
+
+  // Calculate weekly totals
+  const weeklyStats = weeklySessions.reduce((acc, session) => ({
+    earnings: acc.earnings + session.earnings,
+    hours: acc.hours + session.hours,
+    miles: acc.miles + session.miles,
+    trips: acc.trips + 1
+  }), { earnings: 0, hours: 0, miles: 0, trips: 0 })
+
+  const weeklyAvgHourly = weeklyStats.hours > 0 ? weeklyStats.earnings / weeklyStats.hours : 0
+
+  // Platform colors mapping
+  const platformColors: { [key: string]: string } = {
+    'Uber': '#000000',
+    'DoorDash': '#FF6000',
+    'Lyft': '#FF00BF',
+    'Instacart': '#43B02A',
+    'Grubhub': '#F63440',
+    'Postmates': '#000000',
+    'Shipt': '#0077CC',
+    'Other': '#6B7280'
+  }
+
+  // Convert platform stats to array for rendering
+  const platformData = Object.entries(platformStats).map(([name, stats]) => ({
+    name,
+    earnings: stats.earnings,
+    hours: stats.hours,
+    trips: stats.trips,
+    color: platformColors[name] || '#6B7280'
+  }))
+
+  // Get unique dates from sessions for the date selector
+  const availableDates = [...new Set(sessions.map(s => s.date))].sort().reverse()
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
+      {/* Profile Dropdown */}
+      <ProfileDropdown />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Error Alert */}
+        {error && (
+          <Alert className="mb-6 border-destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+
+
+        {/* Dashboard Header */}
+        <div className="mb-8">
+          <DashboardHeader />
+          <div className="flex justify-between items-center mt-4">
+            {/* Date Selector */}
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <select
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="bg-background border border-border rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                {availableDates.length > 0 ? (
+                  availableDates.map(date => (
+                    <option key={date} value={date}>
+                      {formatDateString(date)}
+                    </option>
+                  ))
+                ) : (
+                  <option value={getCurrentDate()}>Today</option>
+                )}
+              </select>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <Button 
+                onClick={handleExportData}
+                variant="outline"
+                size="lg"
+                className="border-border hover:bg-muted"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export Data
+              </Button>
+              <Button 
+                onClick={() => setIsSessionFormOpen(true)}
+                className="bg-gradient-primary text-primary-foreground hover:opacity-90 transition-opacity shadow-card"
+                size="lg"
+              >
+                Log Work Session
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Loading State */}
+        {loading && (
+          <div className="mb-8">
+            <Card className="bg-gradient-card shadow-card">
+              <CardContent className="p-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading your sessions...</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <StatsCard
+            title="Today's Earnings"
+            value={`$${totalStats.earnings.toFixed(2)}`}
+            icon={DollarSign}
+            iconColor="text-earnings"
+          />
+          <StatsCard
+            title="Hours Worked"
+            value={totalStats.hours.toFixed(1)}
+            icon={Clock}
+            iconColor="text-time"
+          />
+          <StatsCard
+            title="Miles Driven"
+            value={totalStats.miles.toFixed(0)}
+            icon={Navigation}
+            iconColor="text-mileage"
+          />
+          <StatsCard
+            title="Total Trips"
+            value={totalStats.trips.toString()}
+            icon={TrendingUp}
+            iconColor="text-primary"
+          />
+        </div>
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Platform Cards */}
+          <div className="lg:col-span-2 space-y-6">
+            {platformData.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {platformData.map((platform) => (
+                  <PlatformCard
+                    key={platform.name}
+                    name={platform.name}
+                    earnings={platform.earnings}
+                    hours={platform.hours}
+                    trips={platform.trips}
+                    color={platform.color}
+                  />
+                ))}
               </div>
-            </CardContent>
-          </Card>
+            ) : (
+              <Card className="bg-gradient-card shadow-card p-8 text-center">
+                <p className="text-muted-foreground">No sessions logged for this date</p>
+              </Card>
+            )}
+            
+            {/* Earnings Chart */}
+            <EarningsChart />
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Session History */}
+            <SessionHistory limit={5} />
+            
+            {/* Weekly Summary Card */}
+            <Card className="bg-gradient-card shadow-card">
+              <CardHeader>
+                <CardTitle>This Week</CardTitle>
+                <CardDescription>Performance summary</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Total Earnings</span>
+                  <span className="font-semibold">${weeklyStats.earnings.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Hours Worked</span>
+                  <span className="font-semibold">{weeklyStats.hours.toFixed(1)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Avg. Hourly</span>
+                  <span className="font-semibold">${weeklyAvgHourly.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Total Trips</span>
+                  <span className="font-semibold">{weeklyStats.trips}</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
+
+      {/* Session Log Form Dialog */}
+      <SessionLogForm
+        onSubmit={handleSessionSubmit}
+        isOpen={isSessionFormOpen}
+        onClose={() => setIsSessionFormOpen(false)}
+        isSubmitting={isSubmitting}
+      />
+
+      {/* Export Dialog */}
+      <ExportDialog
+        isOpen={isExportDialogOpen}
+        onClose={() => setIsExportDialogOpen(false)}
+        onConfirm={handleConfirmExport}
+        sessions={sessions}
+        isExporting={isExporting}
+      />
     </div>
   )
 }

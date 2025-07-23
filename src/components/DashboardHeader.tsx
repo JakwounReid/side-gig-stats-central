@@ -1,33 +1,26 @@
-import { Calendar, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { TrendingUp } from "lucide-react";
 
 export const DashboardHeader = () => {
-  const today = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
-
   return (
     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-      <div>
-        <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-          Gig Dashboard
-        </h1>
-        <div className="flex items-center gap-2 text-muted-foreground mt-1">
-          <Calendar className="h-4 w-4" />
-          <span className="text-sm">{today}</span>
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gradient-primary rounded-lg shadow-lg">
+            <TrendingUp className="h-6 w-6 text-white" />
+          </div>
+          <div className="space-y-1">
+            <h1 className="text-4xl font-bold leading-tight mb-2">
+              <span className="bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
+                Gig Dash
+              </span>
+            </h1>
+            <span></span>
+            <p className="text-sm text-muted-foreground font-medium">
+              Track your side hustle earnings
+            </p>
+          </div>
         </div>
       </div>
-      
-      <Button 
-        className="bg-gradient-primary text-primary-foreground hover:opacity-90 transition-opacity shadow-card"
-        size="lg"
-      >
-        <Plus className="h-4 w-4 mr-2" />
-        Log Work Session
-      </Button>
     </div>
   );
 };
