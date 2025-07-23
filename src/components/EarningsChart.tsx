@@ -2,12 +2,63 @@ import { Card } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useSessions } from '../contexts/SessionContext';
 
-export const EarningsChart = () => {
-  const { getWeeklySessions } = useSessions();
-  const weeklySessions = getWeeklySessions();
+type TimePeriod = 'day' | 'week' | 'month' | 'year';
+
+interface EarningsChartProps {
+  selectedPeriod: TimePeriod;
+  selectedDate: string;
+}
+
+export const EarningsChart = ({ selectedPeriod, selectedDate }: EarningsChartProps) => {
+  const { sessions } = useSessions();
+
+  // Helper function to get sessions for a specific time period
+  const getSessionsForPeriod = (period: TimePeriod, date: string) => {
+    const targetDate = new Date(date)
+    
+    switch (period) {
+      case 'day':
+        return sessions.filter(session => session.date === date)
+      
+      case 'week':
+        const weekStart = new Date(targetDate)
+        weekStart.setDate(targetDate.getDate() - targetDate.getDay())
+        const weekEnd = new Date(weekStart)
+        weekEnd.setDate(weekStart.getDate() + 6)
+        
+        return sessions.filter(session => {
+          const sessionDate = new Date(session.date)
+          return sessionDate >= weekStart && sessionDate <= weekEnd
+        })
+      
+      case 'month':
+        const monthStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1)
+        const monthEnd = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0)
+        
+        return sessions.filter(session => {
+          const sessionDate = new Date(session.date)
+          return sessionDate >= monthStart && sessionDate <= monthEnd
+        })
+      
+      case 'year':
+        const yearStart = new Date(targetDate.getFullYear(), 0, 1)
+        const yearEnd = new Date(targetDate.getFullYear(), 11, 31)
+        
+        return sessions.filter(session => {
+          const sessionDate = new Date(session.date)
+          return sessionDate >= yearStart && sessionDate <= yearEnd
+        })
+      
+      default:
+        return sessions.filter(session => session.date === date)
+    }
+  }
+
+  // Get sessions for the selected period
+  const periodSessions = getSessionsForPeriod(selectedPeriod, selectedDate)
 
   // Group sessions by day and calculate totals
-  const dailyData = weeklySessions.reduce((acc, session) => {
+  const dailyData = periodSessions.reduce((acc, session) => {
     const day = new Date(session.date).toLocaleDateString('en-US', { weekday: 'short' });
     
     if (!acc[day]) {
@@ -38,7 +89,7 @@ export const EarningsChart = () => {
   }, {} as any);
 
   // Convert to array and sort by day
-  const chartData = Object.values(dailyData).sort((a, b) => {
+  const chartData = Object.values(dailyData).sort((a: any, b: any) => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return days.indexOf(a.day) - days.indexOf(b.day);
   });
@@ -75,21 +126,32 @@ export const EarningsChart = () => {
     'other': 'Other'
   };
 
+  // Helper function to get period label
+  const getPeriodLabel = (period: TimePeriod) => {
+    switch (period) {
+      case 'day': return 'Day'
+      case 'week': return 'Week'
+      case 'month': return 'Month'
+      case 'year': return 'Year'
+      default: return 'Day'
+    }
+  }
+
   // If no data, show empty state
   if (chartData.length === 0) {
     return (
       <Card className="p-6 bg-gradient-card shadow-card animate-fade-in">
         <div className="mb-6">
           <h3 className="text-lg font-semibold text-card-foreground">
-            Weekly Earnings Overview
+            Earnings Overview
           </h3>
           <p className="text-sm text-muted-foreground">
-            Track your daily earnings across platforms
+            Track your earnings across platforms for this {selectedPeriod}
           </p>
         </div>
         
         <div className="h-80 flex items-center justify-center">
-          <p className="text-muted-foreground">No earnings data for this week</p>
+          <p className="text-muted-foreground">No earnings data for this {selectedPeriod}</p>
         </div>
       </Card>
     );
@@ -99,10 +161,10 @@ export const EarningsChart = () => {
     <Card className="p-6 bg-gradient-card shadow-card animate-fade-in">
       <div className="mb-6">
         <h3 className="text-lg font-semibold text-card-foreground">
-          Weekly Earnings Overview
+          Earnings Overview
         </h3>
         <p className="text-sm text-muted-foreground">
-          Track your daily earnings across platforms
+          Track your earnings across platforms for this {selectedPeriod}
         </p>
       </div>
       

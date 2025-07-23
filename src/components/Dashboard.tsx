@@ -351,7 +351,10 @@ const Dashboard = () => {
             )}
             
             {/* Earnings Chart */}
-            <EarningsChart />
+            <EarningsChart 
+              selectedPeriod={selectedPeriod}
+              selectedDate={selectedDate}
+            />
           </div>
 
           {/* Sidebar */}
