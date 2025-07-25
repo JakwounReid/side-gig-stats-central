@@ -2,123 +2,79 @@ import { Card } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useSessions } from '../contexts/SessionContext';
 
-type TimePeriod = 'day' | 'week' | 'month' | 'year' | '2year' | '3year';
-
 interface EarningsChartProps {
-  selectedPeriod: TimePeriod;
+  startDate?: Date;
+  endDate?: Date;
 }
 
-export const EarningsChart = ({ selectedPeriod }: EarningsChartProps) => {
+export const EarningsChart = ({ startDate, endDate }: EarningsChartProps) => {
   const { sessions } = useSessions();
 
-  // Helper function to get sessions for a specific time period
-  const getSessionsForPeriod = (period: TimePeriod) => {
-    const today = new Date()
-    const todayStr = today.toISOString().split('T')[0]
-    
-    switch (period) {
-      case 'day':
-        return sessions.filter(session => session.date === todayStr)
-      
-      case 'week':
-        const weekStart = new Date(today)
-        weekStart.setDate(today.getDate() - today.getDay())
-        const weekEnd = new Date(today)
-        
-        return sessions.filter(session => {
-          const sessionDate = new Date(session.date)
-          return sessionDate >= weekStart && sessionDate <= weekEnd
-        })
-      
-      case 'month':
-        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-        const monthEnd = new Date(today)
-        
-        return sessions.filter(session => {
-          const sessionDate = new Date(session.date)
-          return sessionDate >= monthStart && sessionDate <= monthEnd
-        })
-      
-      case 'year':
-        const yearStart = new Date(today)
-        yearStart.setDate(today.getDate() - 365)
-        const yearEnd = new Date(today)
-        
-        return sessions.filter(session => {
-          const sessionDate = new Date(session.date)
-          return sessionDate >= yearStart && sessionDate <= yearEnd
-        })
-      
-      case '2year':
-        const twoYearStart = new Date(today)
-        twoYearStart.setDate(today.getDate() - 730) // 2 years = 730 days
-        const twoYearEnd = new Date(today)
-        
-        return sessions.filter(session => {
-          const sessionDate = new Date(session.date)
-          return sessionDate >= twoYearStart && sessionDate <= twoYearEnd
-        })
-      
-      case '3year':
-        const threeYearStart = new Date(today)
-        threeYearStart.setDate(today.getDate() - 1095) // 3 years = 1095 days
-        const threeYearEnd = new Date(today)
-        
-        return sessions.filter(session => {
-          const sessionDate = new Date(session.date)
-          return sessionDate >= threeYearStart && sessionDate <= threeYearEnd
-        })
-      
-      default:
-        return sessions.filter(session => session.date === todayStr)
+  // Helper function to get sessions for a specific date range
+  const getSessionsForDateRange = (start: Date | undefined, end: Date | undefined) => {
+    if (!start || !end) {
+      // If no date range is selected, return all sessions
+      return sessions
     }
+    
+    // Set time to start of day for start date and end of day for end date
+    const startOfDay = new Date(start)
+    startOfDay.setHours(0, 0, 0, 0)
+    
+    const endOfDay = new Date(end)
+    endOfDay.setHours(23, 59, 59, 999)
+    
+    return sessions.filter(session => {
+      const sessionDate = new Date(session.date)
+      return sessionDate >= startOfDay && sessionDate <= endOfDay
+    })
   }
 
-  // Get sessions for the selected period
-  const periodSessions = getSessionsForPeriod(selectedPeriod)
+  // Get sessions for the selected date range
+  const dateRangeSessions = getSessionsForDateRange(startDate, endDate)
 
-  // Helper function to get appropriate label based on period
-  const getDataLabel = (date: Date, period: TimePeriod) => {
-    switch (period) {
-      case 'day':
-        return date.toLocaleDateString('en-US', { weekday: 'short' });
-      case 'week':
-        return date.toLocaleDateString('en-US', { weekday: 'short' });
-      case 'month':
-        return date.toLocaleDateString('en-US', { day: 'numeric' });
-      case 'year':
-        return date.toLocaleDateString('en-US', { month: 'short' });
-      case '2year':
-        return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-      case '3year':
-        return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-      default:
-        return date.toLocaleDateString('en-US', { weekday: 'short' });
+  // Helper function to get appropriate label based on date range
+  const getDataLabel = (date: Date, start: Date | undefined, end: Date | undefined) => {
+    if (!start || !end) {
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+    
+    const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysDiff <= 7) {
+      return date.toLocaleDateString('en-US', { weekday: 'short' });
+    } else if (daysDiff <= 31) {
+      return date.toLocaleDateString('en-US', { day: 'numeric' });
+    } else if (daysDiff <= 365) {
+      return date.toLocaleDateString('en-US', { month: 'short' });
+    } else {
+      return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
     }
   };
 
-  // Helper function to get grouping key based on period
-  const getGroupingKey = (date: Date, period: TimePeriod) => {
-    switch (period) {
-      case 'day':
-      case 'week':
-        return date.toLocaleDateString('en-US', { weekday: 'short' });
-      case 'month':
-        return date.toLocaleDateString('en-US', { day: 'numeric' });
-      case 'year':
-        return date.toLocaleDateString('en-US', { month: 'short' });
-      case '2year':
-      case '3year':
-        return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-      default:
-        return date.toLocaleDateString('en-US', { weekday: 'short' });
+  // Helper function to get grouping key based on date range
+  const getGroupingKey = (date: Date, start: Date | undefined, end: Date | undefined) => {
+    if (!start || !end) {
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+    
+    const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysDiff <= 7) {
+      return date.toLocaleDateString('en-US', { weekday: 'short' });
+    } else if (daysDiff <= 31) {
+      return date.toLocaleDateString('en-US', { day: 'numeric' });
+    } else if (daysDiff <= 365) {
+      return date.toLocaleDateString('en-US', { month: 'short' });
+    } else {
+      return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
     }
   };
 
   // Group sessions by appropriate time unit and calculate totals
-  const groupedData = periodSessions.reduce((acc, session) => {
+  const groupedData = dateRangeSessions.reduce((acc, session) => {
     const sessionDate = new Date(session.date);
-    const key = getGroupingKey(sessionDate, selectedPeriod);
+    const key = getGroupingKey(sessionDate, startDate, endDate);
     
     if (!acc[key]) {
       acc[key] = { 
@@ -188,17 +144,20 @@ export const EarningsChart = ({ selectedPeriod }: EarningsChartProps) => {
     'other': 'Other'
   };
 
-  // Helper function to get period label
-  const getPeriodLabel = (period: TimePeriod) => {
-    switch (period) {
-      case 'day': return 'Day'
-      case 'week': return 'Week'
-      case 'month': return 'Month'
-      case 'year': return 'Year'
-      case '2year': return '2 Years'
-      case '3year': return '3 Years'
-      default: return 'Day'
+  // Helper function to get date range label
+  const getDateRangeLabel = (start: Date | undefined, end: Date | undefined) => {
+    if (!start || !end) {
+      return 'all time'
     }
+    
+    const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    
+    if (startStr === endStr) {
+      return startStr
+    }
+    
+    return `${startStr} - ${endStr}`
   }
 
   // If no data, show empty state
@@ -210,12 +169,12 @@ export const EarningsChart = ({ selectedPeriod }: EarningsChartProps) => {
             Earnings Overview
           </h3>
           <p className="text-sm text-muted-foreground">
-            Track your earnings across platforms for this {selectedPeriod}
+            Track your earnings across platforms for {getDateRangeLabel(startDate, endDate)}
           </p>
         </div>
         
         <div className="h-80 flex items-center justify-center">
-          <p className="text-muted-foreground">No earnings data for this {selectedPeriod}</p>
+          <p className="text-muted-foreground">No earnings data for {getDateRangeLabel(startDate, endDate)}</p>
         </div>
       </Card>
     );
@@ -228,7 +187,7 @@ export const EarningsChart = ({ selectedPeriod }: EarningsChartProps) => {
           Earnings Overview
         </h3>
         <p className="text-sm text-muted-foreground">
-          Track your earnings across platforms for this {selectedPeriod}
+          Track your earnings across platforms for {getDateRangeLabel(startDate, endDate)}
         </p>
       </div>
       

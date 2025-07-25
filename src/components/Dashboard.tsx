@@ -12,18 +12,18 @@ import { SessionHistory } from './SessionHistory'
 import { ProfileDropdown } from './ProfileDropdown'
 import { ExportDialog } from './ExportDialog'
 import ImportDialog from './ImportDialog'
+import { DateRangePicker } from './DateRangePicker'
 import { DollarSign, Clock, Navigation, TrendingUp, AlertCircle, Download, Upload } from 'lucide-react'
 import { Alert, AlertDescription } from './ui/alert'
 import { getCurrentDate, formatDateString } from '@/lib/utils'
 import { exportToCSV, generateExportFilename } from '@/lib/export'
 
-type TimePeriod = 'day' | 'week' | 'month' | 'year' | '2year' | '3year'
-
 const Dashboard = () => {
   const { sessions, getTotalStats, getPlatformStats, getWeeklySessions, addSession, addMultipleSessions, loading, error } = useSessions()
   const [isSessionFormOpen, setIsSessionFormOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('day')
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined)
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined)
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
@@ -74,74 +74,31 @@ const Dashboard = () => {
     }
   }
 
-  // Helper function to get sessions for a specific time period
-  const getSessionsForPeriod = (period: TimePeriod) => {
-    const today = new Date()
-    const todayStr = today.toISOString().split('T')[0]
-    
-    switch (period) {
-      case 'day':
-        return sessions.filter(session => session.date === todayStr)
-      
-      case 'week':
-        const weekStart = new Date(today)
-        weekStart.setDate(today.getDate() - today.getDay())
-        const weekEnd = new Date(today)
-        
-        return sessions.filter(session => {
-          const sessionDate = new Date(session.date)
-          return sessionDate >= weekStart && sessionDate <= weekEnd
-        })
-      
-      case 'month':
-        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-        const monthEnd = new Date(today)
-        
-        return sessions.filter(session => {
-          const sessionDate = new Date(session.date)
-          return sessionDate >= monthStart && sessionDate <= monthEnd
-        })
-      
-      case 'year':
-        const yearStart = new Date(today)
-        yearStart.setDate(today.getDate() - 365)
-        const yearEnd = new Date(today)
-        
-        return sessions.filter(session => {
-          const sessionDate = new Date(session.date)
-          return sessionDate >= yearStart && sessionDate <= yearEnd
-        })
-      
-      case '2year':
-        const twoYearStart = new Date(today)
-        twoYearStart.setDate(today.getDate() - 730) // 2 years = 730 days
-        const twoYearEnd = new Date(today)
-        
-        return sessions.filter(session => {
-          const sessionDate = new Date(session.date)
-          return sessionDate >= twoYearStart && sessionDate <= twoYearEnd
-        })
-      
-      case '3year':
-        const threeYearStart = new Date(today)
-        threeYearStart.setDate(today.getDate() - 1095) // 3 years = 1095 days
-        const threeYearEnd = new Date(today)
-        
-        return sessions.filter(session => {
-          const sessionDate = new Date(session.date)
-          return sessionDate >= threeYearStart && sessionDate <= threeYearEnd
-        })
-      
-      default:
-        return sessions.filter(session => session.date === todayStr)
+  // Helper function to get sessions for a specific date range
+  const getSessionsForDateRange = (start: Date | undefined, end: Date | undefined) => {
+    if (!start || !end) {
+      // If no date range is selected, return all sessions
+      return sessions
     }
+    
+    // Set time to start of day for start date and end of day for end date
+    const startOfDay = new Date(start)
+    startOfDay.setHours(0, 0, 0, 0)
+    
+    const endOfDay = new Date(end)
+    endOfDay.setHours(23, 59, 59, 999)
+    
+    return sessions.filter(session => {
+      const sessionDate = new Date(session.date)
+      return sessionDate >= startOfDay && sessionDate <= endOfDay
+    })
   }
 
-  // Get stats for the selected period
-  const getStatsForPeriod = (period: TimePeriod) => {
-    const periodSessions = getSessionsForPeriod(period)
+  // Get stats for the selected date range
+  const getStatsForDateRange = (start: Date | undefined, end: Date | undefined) => {
+    const rangeSessions = getSessionsForDateRange(start, end)
     
-    return periodSessions.reduce((acc, session) => ({
+    return rangeSessions.reduce((acc, session) => ({
       earnings: acc.earnings + session.earnings,
       hours: acc.hours + session.hours,
       miles: acc.miles + session.miles,
@@ -149,11 +106,11 @@ const Dashboard = () => {
     }), { earnings: 0, hours: 0, miles: 0, trips: 0 })
   }
 
-  // Get platform stats for the selected period
-  const getPlatformStatsForPeriod = (period: TimePeriod) => {
-    const periodSessions = getSessionsForPeriod(period)
+  // Get platform stats for the selected date range
+  const getPlatformStatsForDateRange = (start: Date | undefined, end: Date | undefined) => {
+    const rangeSessions = getSessionsForDateRange(start, end)
     
-    return periodSessions.reduce((acc, session) => {
+    return rangeSessions.reduce((acc, session) => {
       if (!acc[session.platform]) {
         acc[session.platform] = { earnings: 0, hours: 0, trips: 0 }
       }
@@ -164,9 +121,9 @@ const Dashboard = () => {
     }, {} as { [key: string]: { earnings: number; hours: number; trips: number } })
   }
 
-  // Get real data from sessions using the selected period
-  const totalStats = getStatsForPeriod(selectedPeriod)
-  const platformStats = getPlatformStatsForPeriod(selectedPeriod)
+  // Get real data from sessions using the selected date range
+  const totalStats = getStatsForDateRange(startDate, endDate)
+  const platformStats = getPlatformStatsForDateRange(startDate, endDate)
   const weeklySessions = getWeeklySessions()
 
   // Calculate weekly totals
@@ -179,15 +136,20 @@ const Dashboard = () => {
 
   const weeklyAvgHourly = weeklyStats.hours > 0 ? weeklyStats.earnings / weeklyStats.hours : 0
 
-  // Helper function to get period label
-  const getPeriodLabel = (period: TimePeriod) => {
-    switch (period) {
-      case 'day': return 'Day'
-      case 'week': return 'Week'
-      case 'month': return 'Month'
-      case 'year': return 'Year'
-      default: return 'Day'
+  // Helper function to get date range label
+  const getDateRangeLabel = (start: Date | undefined, end: Date | undefined) => {
+    if (!start || !end) {
+      return 'All Time'
     }
+    
+    const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    
+    if (startStr === endStr) {
+      return startStr
+    }
+    
+    return `${startStr} - ${endStr}`
   }
 
   // Platform colors mapping
@@ -233,21 +195,17 @@ const Dashboard = () => {
         <div className="mb-8">
           <DashboardHeader />
           <div className="flex justify-between items-center mt-4">
-            {/* Period Selector */}
+            {/* Date Range Picker */}
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-muted-foreground">Period:</span>
-              <select
-                value={selectedPeriod}
-                onChange={(e) => setSelectedPeriod(e.target.value as TimePeriod)}
-                className="bg-background border border-border rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="day">Day</option>
-                <option value="week">Week</option>
-                <option value="month">Month</option>
-                <option value="year">Year</option>
-                <option value="2year">2 Years</option>
-                <option value="3year">3 Years</option>
-              </select>
+              <span className="text-sm font-medium text-muted-foreground">Date Range:</span>
+              <DateRangePicker
+                startDate={startDate}
+                endDate={endDate}
+                onDateRangeChange={(start, end) => {
+                  setStartDate(start)
+                  setEndDate(end)
+                }}
+              />
             </div>
             
             {/* Action Buttons */}
@@ -296,7 +254,7 @@ const Dashboard = () => {
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatsCard
-            title={`${getPeriodLabel(selectedPeriod)}'s Earnings`}
+            title={`${getDateRangeLabel(startDate, endDate)} Earnings`}
             value={`$${totalStats.earnings.toFixed(2)}`}
             icon={DollarSign}
             iconColor="text-earnings"
@@ -335,21 +293,23 @@ const Dashboard = () => {
                     hours={platform.hours}
                     trips={platform.trips}
                     color={platform.color}
-                    period={selectedPeriod}
+                    startDate={startDate}
+                    endDate={endDate}
                   />
                 ))}
               </div>
             ) : (
               <Card className="bg-gradient-card shadow-card p-8 text-center">
                 <p className="text-muted-foreground">
-                  No sessions logged for this {selectedPeriod}
+                  No sessions logged for {getDateRangeLabel(startDate, endDate).toLowerCase()}
                 </p>
               </Card>
             )}
             
             {/* Earnings Chart */}
             <EarningsChart 
-              selectedPeriod={selectedPeriod}
+              startDate={startDate}
+              endDate={endDate}
             />
           </div>
 

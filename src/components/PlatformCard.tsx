@@ -1,8 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-type TimePeriod = 'day' | 'week' | 'month' | 'year' | '2year' | '3year';
-
 interface PlatformCardProps {
   name: string;
   earnings: number;
@@ -10,7 +8,8 @@ interface PlatformCardProps {
   trips: number;
   color: string;
   logo?: string;
-  period?: TimePeriod;
+  startDate?: Date;
+  endDate?: Date;
 }
 
 export const PlatformCard = ({ 
@@ -20,21 +19,25 @@ export const PlatformCard = ({
   trips, 
   color,
   logo,
-  period = 'day'
+  startDate,
+  endDate
 }: PlatformCardProps) => {
   const hourlyRate = hours > 0 ? earnings / hours : 0;
 
-  // Helper function to get period label
-  const getPeriodLabel = (period: TimePeriod) => {
-    switch (period) {
-      case 'day': return 'today'
-      case 'week': return 'this week'
-      case 'month': return 'this month'
-      case 'year': return 'this year'
-      case '2year': return '2 years'
-      case '3year': return '3 years'
-      default: return 'today'
+  // Helper function to get date range label
+  const getDateRangeLabel = (start: Date | undefined, end: Date | undefined) => {
+    if (!start || !end) {
+      return 'all time'
     }
+    
+    const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    
+    if (startStr === endStr) {
+      return startStr
+    }
+    
+    return `${startStr} - ${endStr}`
   }
 
   return (
@@ -51,7 +54,7 @@ export const PlatformCard = ({
         </div>
         <div className="text-right">
           <p className="text-xl font-bold text-card-foreground">${earnings}</p>
-          <p className="text-xs text-muted-foreground">{getPeriodLabel(period)}</p>
+          <p className="text-xs text-muted-foreground">{getDateRangeLabel(startDate, endDate)}</p>
         </div>
       </div>
 
