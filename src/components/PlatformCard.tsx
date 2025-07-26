@@ -53,7 +53,7 @@ export const PlatformCard = ({
           <h4 className="font-semibold text-card-foreground">{name}</h4>
         </div>
         <div className="text-right">
-          <p className="text-xl font-bold text-card-foreground">${earnings}</p>
+          <p className="text-xl font-bold text-card-foreground">${earnings.toFixed(2)}</p>
           <p className="text-xs text-muted-foreground">{getDateRangeLabel(startDate, endDate)}</p>
         </div>
       </div>

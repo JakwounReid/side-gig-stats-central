@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useSessions } from '../contexts/SessionContext';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface EarningsChartProps {
   startDate?: Date;
@@ -116,7 +116,7 @@ export const EarningsChart = ({ startDate, endDate }: EarningsChartProps) => {
   const platformsWithData = new Set<string>();
   chartData.forEach((day: any) => {
     Object.keys(day).forEach(key => {
-      if (key !== 'day' && key !== 'earnings' && day[key] > 0) {
+      if (key !== 'label' && key !== 'earnings' && key !== 'date' && day[key] > 0) {
         platformsWithData.add(key);
       }
     });
@@ -160,6 +160,8 @@ export const EarningsChart = ({ startDate, endDate }: EarningsChartProps) => {
     return `${startStr} - ${endStr}`
   }
 
+
+
   // If no data, show empty state
   if (chartData.length === 0) {
     return (
@@ -191,10 +193,10 @@ export const EarningsChart = ({ startDate, endDate }: EarningsChartProps) => {
         </p>
       </div>
       
-      <div className="h-80">
+      <div className="h-80" style={{ position: 'relative', zIndex: 1 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+          <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
             <XAxis 
               dataKey="label" 
               stroke="hsl(var(--muted-foreground))"
@@ -209,27 +211,21 @@ export const EarningsChart = ({ startDate, endDate }: EarningsChartProps) => {
               contentStyle={{
                 backgroundColor: 'hsl(var(--card))',
                 border: '1px solid hsl(var(--border))',
-                borderRadius: '8px',
-                boxShadow: 'var(--shadow-card)'
+                borderRadius: '6px',
+                color: 'hsl(var(--foreground))'
               }}
-              formatter={(value, name) => [`$${value}`, name === 'earnings' ? 'Total' : platformNames[name as string] || name]}
-            />
-            <Line 
-              type="monotone" 
-              dataKey="earnings" 
-              stroke="hsl(var(--primary))" 
-              strokeWidth={3}
-              dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 4 }}
-              activeDot={{ r: 6, stroke: 'hsl(var(--primary))', strokeWidth: 2 }}
+              formatter={(value: any) => [`$${value}`, 'Earnings']}
             />
             {Array.from(platformsWithData).map((platform) => (
-              <Line 
+              <Line
                 key={platform}
-                type="monotone" 
-                dataKey={platform} 
-                stroke={platformColors[platform] || 'hsl(var(--muted-foreground))'} 
+                type="monotone"
+                dataKey={platform}
+                stroke={platformColors[platform]}
                 strokeWidth={2}
-                strokeDasharray="5 5"
+                dot={{ fill: platformColors[platform], strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6, stroke: platformColors[platform], strokeWidth: 2 }}
+                name={platformNames[platform]}
               />
             ))}
           </LineChart>

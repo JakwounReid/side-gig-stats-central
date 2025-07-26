@@ -1,77 +1,33 @@
-import { useState } from 'react'
-import { useAuth } from '../contexts/AuthContext'
-import { useSessions } from '../contexts/SessionContext'
-import { Button } from './ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
-import { DashboardHeader } from './DashboardHeader'
-import { StatsCard } from './StatsCard'
-import { PlatformCard } from './PlatformCard'
-import { EarningsChart } from './EarningsChart'
-import { SessionLogForm } from './SessionLogForm'
-import { SessionHistory } from './SessionHistory'
-import { ProfileDropdown } from './ProfileDropdown'
-import { ExportDialog } from './ExportDialog'
-import ImportDialog from './ImportDialog'
-import { DateRangePicker } from './DateRangePicker'
-import { DollarSign, Clock, Navigation, TrendingUp, AlertCircle, Download, Upload } from 'lucide-react'
-import { Alert, AlertDescription } from './ui/alert'
-import { getCurrentDate, formatDateString } from '@/lib/utils'
-import { exportToCSV, generateExportFilename } from '@/lib/export'
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { useSessions } from "../contexts/SessionContext";
+import { ProfileDropdown } from "./ProfileDropdown";
+import { DashboardHeader } from "./DashboardHeader";
+import { DateRangePicker } from "./DateRangePicker";
+import ImportDialog from "./ImportDialog";
+import { ExportDialog } from "./ExportDialog";
+import { SessionLogForm } from "./SessionLogForm";
+import { EarningsChart } from "./EarningsChart";
+import { StatsCard } from "./StatsCard";
+import { PlatformCard } from "./PlatformCard";
+import { DollarSign, Clock, Calendar, TrendingUp } from "lucide-react";
+import { useState } from "react";
 
 const Dashboard = () => {
-  const { sessions, getTotalStats, getPlatformStats, getWeeklySessions, addSession, addMultipleSessions, loading, error } = useSessions()
-  const [isSessionFormOpen, setIsSessionFormOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { sessions, loading, error } = useSessions()
   const [startDate, setStartDate] = useState<Date | undefined>(undefined)
   const [endDate, setEndDate] = useState<Date | undefined>(undefined)
-  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
-  const [isExporting, setIsExporting] = useState(false)
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
-
-  const handleSessionSubmit = async (sessionData: any) => {
-    setIsSubmitting(true)
-    try {
-      await addSession(sessionData)
-      setIsSessionFormOpen(false)
-    } catch (error) {
-      console.error('Error adding session:', error)
-      // Error is handled by the context
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleExportData = () => {
-    setIsExportDialogOpen(true)
-  }
-
-  const handleConfirmExport = (startDate: string, endDate: string) => {
-    setIsExporting(true)
-    try {
-      const filteredSessions = sessions.filter(session => 
-        session.date >= startDate && session.date <= endDate
-      )
-      const filename = generateExportFilename(startDate, endDate)
-      exportToCSV(filteredSessions, filename)
-      setIsExportDialogOpen(false)
-    } catch (error) {
-      console.error('Error exporting data:', error)
-    } finally {
-      setIsExporting(false)
-    }
-  }
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
+  const [isSessionFormOpen, setIsSessionFormOpen] = useState(false)
 
   const handleImportData = () => {
     setIsImportDialogOpen(true)
   }
 
-  const handleConfirmImport = async (sessionsData: any[]) => {
-    try {
-      await addMultipleSessions(sessionsData)
-      setIsImportDialogOpen(false)
-    } catch (error) {
-      console.error('Error importing data:', error)
-    }
+  const handleConfirmImport = async (importedSessions: any[]) => {
+    // This will be handled by the ImportDialog component
+    setIsImportDialogOpen(false)
   }
 
   // Helper function to get sessions for a specific date range
@@ -94,56 +50,70 @@ const Dashboard = () => {
     })
   }
 
-  // Get stats for the selected date range
+  // Get sessions for the selected date range
+  const dateRangeSessions = getSessionsForDateRange(startDate, endDate)
+
+  // Helper function to calculate stats for a date range
   const getStatsForDateRange = (start: Date | undefined, end: Date | undefined) => {
-    const rangeSessions = getSessionsForDateRange(start, end)
+    const sessions = getSessionsForDateRange(start, end)
     
-    return rangeSessions.reduce((acc, session) => ({
-      earnings: acc.earnings + session.earnings,
-      hours: acc.hours + session.hours,
-      miles: acc.miles + session.miles,
-      trips: acc.trips + 1
-    }), { earnings: 0, hours: 0, miles: 0, trips: 0 })
+    const totalEarnings = sessions.reduce((sum, session) => sum + session.earnings, 0)
+    const totalHours = sessions.reduce((sum, session) => sum + (session.hours || 0), 0)
+    const totalSessions = sessions.length
+    const averagePerHour = totalHours > 0 ? totalEarnings / totalHours : 0
+    
+    return {
+      totalEarnings,
+      totalHours,
+      totalSessions,
+      averagePerHour
+    }
   }
 
-  // Get platform stats for the selected date range
+  // Helper function to get platform stats for a date range
   const getPlatformStatsForDateRange = (start: Date | undefined, end: Date | undefined) => {
-    const rangeSessions = getSessionsForDateRange(start, end)
+    const sessions = getSessionsForDateRange(start, end)
     
-    return rangeSessions.reduce((acc, session) => {
-      if (!acc[session.platform]) {
-        acc[session.platform] = { earnings: 0, hours: 0, trips: 0 }
+    const platformStats: { [key: string]: { earnings: number; sessions: number; hours: number } } = {}
+    
+    sessions.forEach(session => {
+      const platform = session.platform.toLowerCase()
+      let platformKey = 'other'
+      
+      if (platform.includes('uber')) {
+        platformKey = 'uber'
+      } else if (platform.includes('doordash') || platform.includes('door')) {
+        platformKey = 'doordash'
+      } else if (platform.includes('lyft')) {
+        platformKey = 'lyft'
+      } else if (platform.includes('instacart')) {
+        platformKey = 'instacart'
+      } else if (platform.includes('grubhub')) {
+        platformKey = 'grubhub'
+      } else if (platform.includes('shipt')) {
+        platformKey = 'shipt'
       }
-      acc[session.platform].earnings += session.earnings
-      acc[session.platform].hours += session.hours
-      acc[session.platform].trips += 1
-      return acc
-    }, {} as { [key: string]: { earnings: number; hours: number; trips: number } })
+      
+      if (!platformStats[platformKey]) {
+        platformStats[platformKey] = { earnings: 0, sessions: 0, hours: 0 }
+      }
+      
+      platformStats[platformKey].earnings += session.earnings
+      platformStats[platformKey].sessions += 1
+      platformStats[platformKey].hours += session.hours || 0
+    })
+    
+    return platformStats
   }
-
-  // Get real data from sessions using the selected date range
-  const totalStats = getStatsForDateRange(startDate, endDate)
-  const platformStats = getPlatformStatsForDateRange(startDate, endDate)
-  const weeklySessions = getWeeklySessions()
-
-  // Calculate weekly totals
-  const weeklyStats = weeklySessions.reduce((acc, session) => ({
-    earnings: acc.earnings + session.earnings,
-    hours: acc.hours + session.hours,
-    miles: acc.miles + session.miles,
-    trips: acc.trips + 1
-  }), { earnings: 0, hours: 0, miles: 0, trips: 0 })
-
-  const weeklyAvgHourly = weeklyStats.hours > 0 ? weeklyStats.earnings / weeklyStats.hours : 0
 
   // Helper function to get date range label
   const getDateRangeLabel = (start: Date | undefined, end: Date | undefined) => {
     if (!start || !end) {
-      return 'All Time'
+      return 'all time'
     }
     
-    const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     
     if (startStr === endStr) {
       return startStr
@@ -152,226 +122,142 @@ const Dashboard = () => {
     return `${startStr} - ${endStr}`
   }
 
-  // Platform colors mapping
-  const platformColors: { [key: string]: string } = {
-    'Uber': '#000000',
-    'DoorDash': '#FF6000',
-    'Lyft': '#FF00BF',
-    'Instacart': '#43B02A',
-    'Grubhub': '#F63440',
-    'Postmates': '#000000',
-    'Shipt': '#0077CC',
-    'Other': '#6B7280'
-  }
-
-  // Convert platform stats to array for rendering
-  const platformData = Object.entries(platformStats).map(([name, stats]) => ({
-    name,
-    earnings: stats.earnings,
-    hours: stats.hours,
-    trips: stats.trips,
-    color: platformColors[name] || '#6B7280'
-  }))
-
-
+  // Get current stats
+  const stats = getStatsForDateRange(startDate, endDate)
+  const platformStats = getPlatformStatsForDateRange(startDate, endDate)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
+    <div className="min-h-screen bg-background">
       {/* Profile Dropdown */}
       <ProfileDropdown />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Error Alert */}
-        {error && (
-          <Alert className="mb-6 border-destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-
-
+      <div className="container mx-auto px-4 py-8">
         {/* Dashboard Header */}
-        <div className="mb-8">
-          <DashboardHeader />
-          <div className="flex justify-between items-center mt-4">
-            {/* Date Range Picker */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-muted-foreground">Date Range:</span>
-              <DateRangePicker
+        <DashboardHeader />
+        
+        {/* Date Range Picker */}
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-sm font-medium text-muted-foreground">Date Range:</span>
+          <DateRangePicker
+            startDate={startDate}
+            endDate={endDate}
+            onDateRangeChange={(start, end) => {
+              setStartDate(start)
+              setEndDate(end)
+            }}
+          />
+        </div>
+        
+        {/* Quick Actions */}
+        <div className="flex flex-wrap gap-4 mb-6">
+          <Button onClick={handleImportData} className="flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+            </svg>
+            Import Data
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            onClick={() => setIsExportDialogOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Export Data
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            onClick={() => setIsSessionFormOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Log Session
+          </Button>
+        </div>
+
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <StatsCard
+            title="Total Earnings"
+            value={`$${stats.totalEarnings.toFixed(2)}`}
+            icon={DollarSign}
+          />
+          <StatsCard
+            title="Total Hours"
+            value={stats.totalHours.toFixed(1)}
+            icon={Clock}
+          />
+          <StatsCard
+            title="Total Sessions"
+            value={stats.totalSessions.toString()}
+            icon={Calendar}
+          />
+          <StatsCard
+            title="Average/Hour"
+            value={`$${stats.averagePerHour.toFixed(2)}`}
+            icon={TrendingUp}
+          />
+        </div>
+
+        {/* Platform Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          {Object.entries(platformStats).length > 0 ? (
+            Object.entries(platformStats).map(([platform, stats]) => (
+              <PlatformCard
+                key={platform}
+                name={platform.charAt(0).toUpperCase() + platform.slice(1)}
+                earnings={stats.earnings}
+                hours={stats.hours}
+                trips={stats.sessions}
+                color={`hsl(var(--${platform}))`}
                 startDate={startDate}
                 endDate={endDate}
-                onDateRangeChange={(start, end) => {
-                  setStartDate(start)
-                  setEndDate(end)
-                }}
               />
+            ))
+          ) : (
+            <div className="col-span-full text-center py-8">
+              <p className="text-muted-foreground">No platform data for {getDateRangeLabel(startDate, endDate)}</p>
             </div>
-            
-            {/* Action Buttons */}
-            <div className="flex gap-3">
-              <Button 
-                onClick={handleImportData}
-                variant="outline"
-                size="lg"
-                className="border-border hover:bg-muted"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Import Data
-              </Button>
-              <Button 
-                onClick={handleExportData}
-                variant="outline"
-                size="lg"
-                className="border-border hover:bg-muted"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export Data
-              </Button>
-              <Button 
-                onClick={() => setIsSessionFormOpen(true)}
-                className="bg-gradient-primary text-primary-foreground hover:opacity-90 transition-opacity shadow-card"
-                size="lg"
-              >
-                Log Work Session
-              </Button>
-            </div>
-          </div>
+          )}
         </div>
-
-        {/* Loading State */}
-        {loading && (
-          <div className="mb-8">
-            <Card className="bg-gradient-card shadow-card">
-              <CardContent className="p-8 text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                <p className="text-muted-foreground">Loading your sessions...</p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatsCard
-            title={`${getDateRangeLabel(startDate, endDate)} Earnings`}
-            value={`$${totalStats.earnings.toFixed(2)}`}
-            icon={DollarSign}
-            iconColor="text-earnings"
-          />
-          <StatsCard
-            title="Hours Worked"
-            value={totalStats.hours.toFixed(1)}
-            icon={Clock}
-            iconColor="text-time"
-          />
-          <StatsCard
-            title="Miles Driven"
-            value={totalStats.miles.toFixed(0)}
-            icon={Navigation}
-            iconColor="text-mileage"
-          />
-          <StatsCard
-            title="Total Trips"
-            value={totalStats.trips.toString()}
-            icon={TrendingUp}
-            iconColor="text-primary"
-          />
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Platform Cards */}
-          <div className="lg:col-span-2 space-y-6">
-            {platformData.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {platformData.map((platform) => (
-                  <PlatformCard
-                    key={platform.name}
-                    name={platform.name}
-                    earnings={platform.earnings}
-                    hours={platform.hours}
-                    trips={platform.trips}
-                    color={platform.color}
-                    startDate={startDate}
-                    endDate={endDate}
-                  />
-                ))}
-              </div>
-            ) : (
-              <Card className="bg-gradient-card shadow-card p-8 text-center">
-                <p className="text-muted-foreground">
-                  No sessions logged for {getDateRangeLabel(startDate, endDate).toLowerCase()}
-                </p>
-              </Card>
-            )}
-            
-            {/* Earnings Chart */}
-            <EarningsChart 
-              startDate={startDate}
-              endDate={endDate}
-            />
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Session History */}
-            <SessionHistory limit={5} />
-            
-            {/* Weekly Summary Card */}
-            <Card className="bg-gradient-card shadow-card">
-              <CardHeader>
-                <CardTitle>This Week</CardTitle>
-                <CardDescription>Performance summary</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Total Earnings</span>
-                  <span className="font-semibold">${weeklyStats.earnings.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Hours Worked</span>
-                  <span className="font-semibold">{weeklyStats.hours.toFixed(1)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Avg. Hourly</span>
-                  <span className="font-semibold">${weeklyAvgHourly.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Total Trips</span>
-                  <span className="font-semibold">{weeklyStats.trips}</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+        
+        {/* Import Dialog */}
+        <ImportDialog
+          isOpen={isImportDialogOpen}
+          onClose={() => setIsImportDialogOpen(false)}
+          onImport={handleConfirmImport}
+        />
+        
+        {/* Export Dialog */}
+        <ExportDialog
+          isOpen={isExportDialogOpen}
+          onClose={() => setIsExportDialogOpen(false)}
+          onConfirm={() => {}}
+          sessions={sessions}
+          isExporting={false}
+        />
+        
+        {/* Session Log Form */}
+        <SessionLogForm
+          isOpen={isSessionFormOpen}
+          onClose={() => setIsSessionFormOpen(false)}
+          onSubmit={() => {}}
+          isSubmitting={false}
+        />
+        
+        {/* Earnings Chart */}
+        <EarningsChart
+          startDate={startDate}
+          endDate={endDate}
+        />
       </div>
-
-      {/* Session Log Form Dialog */}
-      <SessionLogForm
-        onSubmit={handleSessionSubmit}
-        isOpen={isSessionFormOpen}
-        onClose={() => setIsSessionFormOpen(false)}
-        isSubmitting={isSubmitting}
-      />
-
-      {/* Export Dialog */}
-      <ExportDialog
-        isOpen={isExportDialogOpen}
-        onClose={() => setIsExportDialogOpen(false)}
-        onConfirm={handleConfirmExport}
-        sessions={sessions}
-        isExporting={isExporting}
-      />
-
-      {/* Import Dialog */}
-      <ImportDialog
-        isOpen={isImportDialogOpen}
-        onClose={() => setIsImportDialogOpen(false)}
-        onImport={handleConfirmImport}
-      />
     </div>
   )
 }
 
-export default Dashboard
+export default Dashboard 

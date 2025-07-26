@@ -21,23 +21,6 @@ export const DateRangePicker = ({
 }: DateRangePickerProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleSelect = (date: Date | undefined) => {
-    if (!date) return;
-
-    if (!startDate || (startDate && endDate)) {
-      // Start a new range
-      onDateRangeChange(date, undefined);
-    } else {
-      // Complete the range
-      if (date < startDate) {
-        onDateRangeChange(date, startDate);
-      } else {
-        onDateRangeChange(startDate, date);
-      }
-      setIsOpen(false);
-    }
-  };
-
   const clearRange = () => {
     onDateRangeChange(undefined, undefined);
   };
@@ -58,12 +41,13 @@ export const DateRangePicker = ({
               'justify-start text-left font-normal',
               !startDate && 'text-muted-foreground'
             )}
+            onClick={() => setIsOpen(!isOpen)}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
             {formatDateRange()}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent className="w-auto p-0 z-50" align="start" onInteractOutside={() => setIsOpen(false)}>
           <Calendar
             initialFocus
             mode="range"
