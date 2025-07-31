@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { useSessions } from '../contexts/SessionContext';
 
 interface PlatformCardProps {
   name: string;
@@ -22,7 +23,31 @@ export const PlatformCard = ({
   startDate,
   endDate
 }: PlatformCardProps) => {
+  const { sessions } = useSessions();
   const hourlyRate = hours > 0 ? earnings / hours : 0;
+
+  // Generate sparkline data for this platform
+  const generateSparklineData = () => {
+    const platformSessions = sessions.filter(session => {
+      const p = session.platform.toLowerCase();
+      const platformKey = name.toLowerCase();
+      return p.includes(platformKey);
+    });
+
+    // Get last 7 days of data
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      return date.toISOString().split('T')[0];
+    }).reverse();
+
+    return last7Days.map(date => {
+      const daySessions = platformSessions.filter(s => s.date === date);
+      return daySessions.reduce((sum, s) => sum + s.earnings, 0);
+    });
+  };
+
+  const sparklineData = generateSparklineData();
 
   // Helper function to get date range label
   const getDateRangeLabel = (start: Date | undefined, end: Date | undefined) => {
@@ -59,6 +84,34 @@ export const PlatformCard = ({
       </div>
 
       <div className="space-y-3">
+        {/* Sparkline */}
+        <div className="pt-2 border-t border-border/50">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-muted-foreground">7-day trend</p>
+            <p className="text-xs text-muted-foreground">
+              {sparklineData.some(v => v > 0) ? 'Active' : 'No recent activity'}
+            </p>
+          </div>
+          <div className="h-8 flex items-end gap-1">
+            {sparklineData.map((value, index) => {
+              const maxValue = Math.max(...sparklineData.filter(v => v > 0), 1);
+              const height = value > 0 ? (value / maxValue) * 100 : 0;
+              return (
+                <div
+                  key={index}
+                  className="flex-1 bg-current opacity-20 rounded-sm transition-all duration-200 hover:opacity-40"
+                  style={{
+                    height: `${Math.max(height, 2)}%`,
+                    backgroundColor: color,
+                    minHeight: '2px'
+                  }}
+                  title={`${new Date(Date.now() - (6 - index) * 24 * 60 * 60 * 1000).toLocaleDateString()}: $${value.toFixed(2)}`}
+                />
+              );
+            })}
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border/50">
           <div>
             <p className="text-xs text-muted-foreground">Hours</p>

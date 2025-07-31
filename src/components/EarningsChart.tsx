@@ -5,33 +5,39 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 interface EarningsChartProps {
   startDate?: Date;
   endDate?: Date;
+  selectedPlatform?: string;
 }
 
-export const EarningsChart = ({ startDate, endDate }: EarningsChartProps) => {
+export const EarningsChart = ({ startDate, endDate, selectedPlatform = 'all' }: EarningsChartProps) => {
   const { sessions } = useSessions();
 
-  // Helper function to get sessions for a specific date range
-  const getSessionsForDateRange = (start: Date | undefined, end: Date | undefined) => {
-    if (!start || !end) {
-      // If no date range is selected, return all sessions
-      return sessions
+  // Helper function to get sessions for a specific date range and platform
+  const getSessionsForDateRange = (start: Date | undefined, end: Date | undefined, platform: string = 'all') => {
+    let filtered = sessions
+    if (start && end) {
+      const startOfDay = new Date(start)
+      startOfDay.setHours(0, 0, 0, 0)
+      const endOfDay = new Date(end)
+      endOfDay.setHours(23, 59, 59, 999)
+      filtered = filtered.filter(session => {
+        const sessionDate = new Date(session.date)
+        return sessionDate >= startOfDay && sessionDate <= endOfDay
+      })
     }
-    
-    // Set time to start of day for start date and end of day for end date
-    const startOfDay = new Date(start)
-    startOfDay.setHours(0, 0, 0, 0)
-    
-    const endOfDay = new Date(end)
-    endOfDay.setHours(23, 59, 59, 999)
-    
-    return sessions.filter(session => {
-      const sessionDate = new Date(session.date)
-      return sessionDate >= startOfDay && sessionDate <= endOfDay
-    })
+    if (platform !== 'all') {
+      filtered = filtered.filter(session => {
+        const p = session.platform.toLowerCase()
+        if (platform === 'other') {
+          return !['uber','doordash','lyft','instacart','grubhub','shipt'].some(x => p.includes(x))
+        }
+        return p.includes(platform)
+      })
+    }
+    return filtered
   }
 
-  // Get sessions for the selected date range
-  const dateRangeSessions = getSessionsForDateRange(startDate, endDate)
+  // Get sessions for the selected date range and platform
+  const dateRangeSessions = getSessionsForDateRange(startDate, endDate, selectedPlatform)
 
   // Helper function to get appropriate label based on date range
   const getDataLabel = (date: Date, start: Date | undefined, end: Date | undefined) => {
@@ -112,25 +118,35 @@ export const EarningsChart = ({ startDate, endDate }: EarningsChartProps) => {
     return a.date.getTime() - b.date.getTime();
   });
 
-  // Determine which platforms have data
-  const platformsWithData = new Set<string>();
+  // Ensure all platforms have data points for all time periods (with 0 for missing data)
+  const allPlatforms = ['uber', 'doordash', 'lyft', 'instacart', 'grubhub', 'shipt', 'other'];
   chartData.forEach((day: any) => {
-    Object.keys(day).forEach(key => {
-      if (key !== 'label' && key !== 'earnings' && key !== 'date' && day[key] > 0) {
-        platformsWithData.add(key);
+    allPlatforms.forEach(platform => {
+      if (day[platform] === undefined) {
+        day[platform] = 0;
       }
     });
   });
 
-  // Platform colors mapping
+  // Determine which platforms have actual earnings data (> 0)
+  const platformsWithData = new Set<string>();
+  chartData.forEach((day: any) => {
+    allPlatforms.forEach(platform => {
+      if (day[platform] > 0) {
+        platformsWithData.add(platform);
+      }
+    });
+  });
+
+  // Platform colors mapping - matching the dropdown colors
   const platformColors: { [key: string]: string } = {
-    'uber': 'hsl(var(--uber))',
-    'doordash': 'hsl(var(--doordash))',
-    'lyft': 'hsl(var(--lyft))',
-    'instacart': 'hsl(var(--instacart))',
-    'grubhub': 'hsl(var(--grubhub))',
-    'shipt': 'hsl(var(--shipt))',
-    'other': 'hsl(var(--muted-foreground))'
+    'uber': '#000000',
+    'doordash': '#FF6000',
+    'lyft': '#FF00BF',
+    'instacart': '#43B02A',
+    'grubhub': '#F63440',
+    'shipt': '#0077CC',
+    'other': '#6B7280'
   };
 
   // Platform display names
@@ -214,18 +230,40 @@ export const EarningsChart = ({ startDate, endDate }: EarningsChartProps) => {
                 borderRadius: '6px',
                 color: 'hsl(var(--foreground))'
               }}
-              formatter={(value: any) => [`$${value}`, 'Earnings']}
+              content={({ active, payload, label }) => {
+                if (active && payload && payload.length) {
+                  // Filter out zero values and create custom tooltip content
+                  const validPayload = payload.filter(item => 
+                    item.value && Number(item.value) > 0 && item.dataKey !== 'earnings'
+                  );
+                  
+                  if (validPayload.length === 0) return null;
+                  
+                  return (
+                    <div className="bg-card border border-border rounded-md p-3 shadow-lg">
+                      <p className="font-medium text-sm mb-2">{label}</p>
+                      {validPayload.map((entry, index) => (
+                        <p key={index} className="text-sm" style={{ color: entry.color }}>
+                          {platformNames[entry.dataKey as string] || entry.dataKey}: ${entry.value}
+                        </p>
+                      ))}
+                    </div>
+                  );
+                }
+                return null;
+              }}
             />
             {Array.from(platformsWithData).map((platform) => (
               <Line
                 key={platform}
-                type="monotone"
+                type="linear"
                 dataKey={platform}
                 stroke={platformColors[platform]}
                 strokeWidth={2}
                 dot={{ fill: platformColors[platform], strokeWidth: 2, r: 4 }}
                 activeDot={{ r: 6, stroke: platformColors[platform], strokeWidth: 2 }}
                 name={platformNames[platform]}
+                connectNulls={true}
               />
             ))}
           </LineChart>

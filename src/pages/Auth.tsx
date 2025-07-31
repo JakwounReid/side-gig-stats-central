@@ -15,6 +15,11 @@ const AuthPage = () => {
     }
   }, [session, navigate])
 
+  const handleClearSession = async () => {
+    await supabase.auth.signOut()
+    window.location.reload()
+  }
+
   if (session) {
     return null
   }
@@ -42,8 +47,18 @@ const AuthPage = () => {
               },
             }}
             providers={['google', 'github']}
-            redirectTo={`${window.location.origin}/`}
+            redirectTo={import.meta.env.DEV ? 'http://localhost:8080/' : `${window.location.origin}/`}
           />
+          {import.meta.env.DEV && (
+            <div className="mt-4 text-center">
+              <button
+                onClick={handleClearSession}
+                className="text-sm text-gray-500 hover:text-gray-700 underline"
+              >
+                Clear Session (Debug)
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
