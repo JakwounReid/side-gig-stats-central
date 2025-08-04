@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -21,17 +21,20 @@ const CustomAuth = ({ onSuccess }: CustomAuthProps) => {
   const [success, setSuccess] = useState<string | null>(null)
 
   // Simple captcha - user needs to solve a basic math problem
-  const captchaNum1 = Math.floor(Math.random() * 10) + 1
-  const captchaNum2 = Math.floor(Math.random() * 10) + 1
-  const correctAnswer = captchaNum1 + captchaNum2
+  // Use useMemo to keep the captcha stable during form interactions
+  const captchaNumbers = useMemo(() => {
+    const num1 = Math.floor(Math.random() * 10) + 1
+    const num2 = Math.floor(Math.random() * 10) + 1
+    return { num1, num2, answer: num1 + num2 }
+  }, [isSignUp]) // Only regenerate when switching between signup/signin
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setSuccess(null)
 
-    // Validate captcha
-    if (parseInt(captchaAnswer) !== correctAnswer) {
+    // Validate captcha only for signup
+    if (isSignUp && parseInt(captchaAnswer) !== captchaNumbers.answer) {
       setError('Please solve the captcha correctly')
       return
     }
@@ -105,10 +108,13 @@ const CustomAuth = ({ onSuccess }: CustomAuthProps) => {
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred')
-    } finally {
-      setLoading(false)
-      setCaptchaAnswer('')
-    }
+            } finally {
+          setLoading(false)
+          // Only clear captcha answer if we're on signup mode
+          if (isSignUp) {
+            setCaptchaAnswer('')
+          }
+        }
   }
 
   const handleOAuthSignIn = async (provider: 'google' | 'github') => {
@@ -195,21 +201,23 @@ const CustomAuth = ({ onSuccess }: CustomAuthProps) => {
           />
         </div>
 
-        {/* Simple Captcha */}
-        <div className="space-y-2">
-          <Label htmlFor="captcha">
-            Verify you're human: What is {captchaNum1} + {captchaNum2}?
-          </Label>
-          <Input
-            id="captcha"
-            type="number"
-            value={captchaAnswer}
-            onChange={(e) => setCaptchaAnswer(e.target.value)}
-            placeholder="Enter the answer"
-            required
-            disabled={loading}
-          />
-        </div>
+        {/* Simple Captcha - Only show on signup */}
+        {isSignUp && (
+          <div className="space-y-2">
+            <Label htmlFor="captcha">
+              Verify you're human: What is {captchaNumbers.num1} + {captchaNumbers.num2}?
+            </Label>
+            <Input
+              id="captcha"
+              type="number"
+              value={captchaAnswer}
+              onChange={(e) => setCaptchaAnswer(e.target.value)}
+              placeholder="Enter the answer"
+              required
+              disabled={loading}
+            />
+          </div>
+        )}
 
         {error && (
           <Alert variant="destructive">
