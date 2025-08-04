@@ -1,145 +1,95 @@
 # Supabase Authentication Setup
 
-This project now includes Supabase authentication with the following features:
+## Disable Email Confirmation
 
-## Features
+To allow users to sign up without email confirmation, you need to configure your Supabase project settings:
 
-- ✅ Email/Password authentication
-- ✅ Social login (Google, GitHub)
-- ✅ Protected routes
-- ✅ User session management
-- ✅ Auto-redirect on login/logout
-- ✅ User profile display
-- ✅ Beautiful UI with shadcn/ui components
+### 1. Go to Supabase Dashboard
+- Navigate to your Supabase project dashboard
+- Go to **Authentication** → **Settings**
 
-## Setup Instructions
+### 2. Disable Email Confirmation
+- Find the **Email Auth** section
+- **Uncheck** "Enable email confirmations"
+- Save the changes
 
-### 1. Create a Supabase Project
+### 3. Alternative: Enable Auto-Confirm (Recommended)
+If you want to keep email confirmation as a backup but auto-confirm users:
 
-1. Go to [https://supabase.com](https://supabase.com)
-2. Click "Start your project"
-3. Create a new project
-4. Wait for the project to be set up
+1. Go to **Authentication** → **Settings**
+2. In the **Email Auth** section:
+   - Keep "Enable email confirmations" **checked**
+   - Check "Enable auto-confirm"
+   - This will automatically confirm users without requiring email verification
 
-### 2. Get Your Supabase Keys
+### 4. OAuth Provider Setup
 
-1. In your Supabase dashboard, go to Settings > API
-2. Copy your Project URL and anon/public key
+#### Google OAuth:
+1. Go to **Authentication** → **Providers**
+2. Enable **Google**
+3. Add your Google OAuth credentials
+4. Add redirect URLs:
+   - Development: `http://localhost:8080/auth/callback`
+   - Production: `https://your-domain.vercel.app/auth/callback`
 
-### 3. Set Up Environment Variables
+#### GitHub OAuth:
+1. Go to **Authentication** → **Providers**
+2. Enable **GitHub**
+3. Add your GitHub OAuth credentials
+4. Add redirect URLs:
+   - Development: `http://localhost:8080/auth/callback`
+   - Production: `https://your-domain.vercel.app/auth/callback`
 
-1. Copy `.env.example` to `.env`:
-   ```bash
-   cp .env.example .env
-   ```
+### 5. Site URL Configuration
 
-2. Fill in your Supabase credentials in `.env`:
-   ```
-   VITE_SUPABASE_URL=your-project-url
-   VITE_SUPABASE_ANON_KEY=your-anon-key
-   ```
+#### For Development:
+- Site URL: `http://localhost:8080`
+- Redirect URLs: `http://localhost:8080/auth/callback`
 
-### 4. Configure Authentication Providers (Optional)
+#### For Production:
+- Site URL: `https://your-domain.vercel.app`
+- Redirect URLs: `https://your-domain.vercel.app/auth/callback`
 
-If you want to enable social login:
+### 6. Environment Variables
 
-1. Go to Authentication > Providers in your Supabase dashboard
-2. Configure Google, GitHub, or other providers
-3. Add your OAuth credentials
+Make sure you have these environment variables set:
 
-### 5. Set Up Site URL
-
-1. Go to Authentication > URL Configuration
-2. Add your site URL (e.g., `http://localhost:5173` for development)
-
-### 6. Start the Development Server
-
-```bash
-npm run dev
+#### Development (.env.local):
+```
+VITE_SUPABASE_DEV_URL=your_dev_project_url
+VITE_SUPABASE_DEV_ANON_KEY=your_dev_anon_key
 ```
 
-## Usage
-
-### Authentication Flow
-
-1. **Unauthenticated users** are redirected to `/auth`
-2. **Authenticated users** can access the protected dashboard at `/`
-3. Users can sign out from the dashboard
-
-### Available Routes
-
-- `/auth` - Authentication page (login/signup)
-- `/` - Protected dashboard (requires authentication)
-
-### Authentication Context
-
-The `AuthProvider` provides the following:
-
-- `session` - Current user session
-- `user` - Current user object
-- `loading` - Loading state
-- `signOut()` - Sign out function
-
-### Using Auth in Components
-
-```tsx
-import { useAuth } from '../contexts/AuthContext'
-
-const MyComponent = () => {
-  const { user, session, loading, signOut } = useAuth()
-  
-  if (loading) return <div>Loading...</div>
-  if (!session) return <div>Please login</div>
-  
-  return (
-    <div>
-      <p>Welcome, {user?.email}!</p>
-      <button onClick={signOut}>Sign Out</button>
-    </div>
-  )
-}
+#### Production (Vercel):
+```
+VITE_SUPABASE_URL=your_prod_project_url
+VITE_SUPABASE_ANON_KEY=your_prod_anon_key
 ```
 
-## Components
+## Security Considerations
 
-### AuthProvider
-Manages authentication state and provides it to the app.
+1. **Captcha Protection**: The custom auth component includes a simple math captcha to prevent automated signups
+2. **Password Requirements**: Minimum 6 characters required
+3. **Rate Limiting**: Consider implementing rate limiting for signup attempts
+4. **Email Validation**: Basic email format validation is included
 
-### ProtectedRoute
-Wraps components that require authentication.
+## Testing
 
-### Dashboard
-Main dashboard component showing user information.
-
-### AuthPage
-Login/signup page using Supabase Auth UI.
-
-## Security Notes
-
-- Never commit your `.env` file
-- Use environment-specific configurations
-- Enable Row Level Security (RLS) in Supabase for your tables
-- Consider implementing proper error handling and validation
-
-## Next Steps
-
-1. Set up your database schema
-2. Implement Row Level Security policies
-3. Add more authentication providers if needed
-4. Customize the UI to match your brand
-5. Add profile management features
+1. Test signup with email/password
+2. Test OAuth sign-in with Google and GitHub
+3. Verify users can access the dashboard immediately after signup
+4. Test the captcha functionality
 
 ## Troubleshooting
 
-**"Missing Supabase environment variables" error:**
-- Check that your `.env` file exists and has the correct variables
-- Restart your development server after adding environment variables
+### "Email confirmation required" error:
+- Make sure email confirmation is disabled in Supabase settings
+- Or enable auto-confirm in the settings
 
-**Authentication not working:**
-- Verify your Supabase project URL and keys
-- Check that your site URL is configured in Supabase
-- Ensure OAuth providers are properly configured
+### OAuth redirect errors:
+- Verify redirect URLs are correctly configured
+- Check that the URLs match exactly (including http/https)
 
-**Redirects not working:**
-- Check that your redirect URLs are configured in Supabase
-- Verify that the `redirectTo` parameter matches your site URL
+### Session not persisting:
+- Check that `persistSession: true` is set in the Supabase client config
+- Verify cookies are enabled in the browser

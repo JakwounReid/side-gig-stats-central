@@ -1,9 +1,7 @@
-import { Auth } from '@supabase/auth-ui-react'
-import { ThemeSupa } from '@supabase/auth-ui-shared'
-import { supabase } from '../lib/supabase'
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import CustomAuth from '../components/CustomAuth'
 
 const AuthPage = () => {
   const { session } = useAuth()
@@ -15,9 +13,8 @@ const AuthPage = () => {
     }
   }, [session, navigate])
 
-  const handleClearSession = async () => {
-    await supabase.auth.signOut()
-    window.location.reload()
+  const handleAuthSuccess = () => {
+    // The session will be updated automatically, triggering the redirect
   }
 
   if (session) {
@@ -29,36 +26,14 @@ const AuthPage = () => {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to your account
+            Welcome to Gig Dash
           </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Track your side hustle earnings and boost your income
+          </p>
         </div>
         <div className="bg-white p-8 rounded-lg shadow-md">
-          <Auth
-            supabaseClient={supabase}
-            appearance={{
-              theme: ThemeSupa,
-              variables: {
-                default: {
-                  colors: {
-                    brand: '#000000',
-                    brandAccent: '#666666',
-                  },
-                },
-              },
-            }}
-            providers={['google', 'github']}
-            redirectTo={import.meta.env.DEV ? 'http://localhost:8080/' : `${window.location.origin}/`}
-          />
-          {import.meta.env.DEV && (
-            <div className="mt-4 text-center">
-              <button
-                onClick={handleClearSession}
-                className="text-sm text-gray-500 hover:text-gray-700 underline"
-              >
-                Clear Session (Debug)
-              </button>
-            </div>
-          )}
+          <CustomAuth onSuccess={handleAuthSuccess} />
         </div>
       </div>
     </div>
