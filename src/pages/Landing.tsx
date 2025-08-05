@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
+import { track } from '@vercel/analytics'
 import { 
   TrendingUp, 
   Upload, 
@@ -21,6 +22,19 @@ import { useNavigate } from 'react-router-dom'
 const Landing = () => {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('features')
+
+  const handleCTAClick = (location: string) => {
+    track('cta_click', { location, page: 'landing' })
+    navigate('/auth')
+  }
+
+  const handleFeatureClick = (feature: string) => {
+    track('feature_click', { feature, page: 'landing' })
+  }
+
+  const handleFAQClick = (question: string) => {
+    track('faq_click', { question, page: 'landing' })
+  }
 
   const features = [
     {
@@ -135,7 +149,7 @@ const Landing = () => {
               <Button variant="ghost" onClick={() => navigate('/auth')}>
                 Sign In
               </Button>
-              <Button onClick={() => navigate('/auth')}>
+              <Button onClick={() => handleCTAClick('nav_get_started')}>
                 Get Started
               </Button>
             </div>
@@ -159,7 +173,7 @@ const Landing = () => {
             Visualize trends, optimize your schedule, and maximize your side hustle income.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Button size="lg" onClick={() => navigate('/auth')} className="text-lg px-8 py-3">
+            <Button size="lg" onClick={() => handleCTAClick('hero_cta')} className="text-lg px-8 py-3">
               Start Tracking Free
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
@@ -197,7 +211,11 @@ const Landing = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => (
-              <Card key={index} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <Card 
+                key={index} 
+                className="border-0 shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
+                onClick={() => handleFeatureClick(feature.title)}
+              >
                 <CardHeader>
                   <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 mb-4">
                     {feature.icon}
@@ -283,7 +301,11 @@ const Landing = () => {
           </div>
           <div className="space-y-6">
             {faqs.map((faq, index) => (
-              <Card key={index} className="border-0 shadow-sm">
+              <Card 
+                key={index} 
+                className="border-0 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => handleFAQClick(faq.question)}
+              >
                 <CardHeader>
                   <CardTitle className="text-lg">{faq.question}</CardTitle>
                 </CardHeader>
@@ -305,7 +327,7 @@ const Landing = () => {
           <p className="text-xl text-blue-100 mb-8">
             Join thousands of gig workers who are already tracking and optimizing their earnings.
           </p>
-          <Button size="lg" variant="secondary" onClick={() => navigate('/auth')} className="text-lg px-8 py-3">
+          <Button size="lg" variant="secondary" onClick={() => handleCTAClick('cta_section_cta')} className="text-lg px-8 py-3">
             Start Tracking Free Today
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
