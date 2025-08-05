@@ -9,7 +9,7 @@ const AuthPage = () => {
 
   useEffect(() => {
     if (session) {
-      navigate('/')
+      navigate('/dashboard')
     }
   }, [session, navigate])
 

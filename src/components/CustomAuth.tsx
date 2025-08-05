@@ -59,7 +59,7 @@ const CustomAuth = ({ onSuccess }: CustomAuthProps) => {
           email,
           password,
           options: {
-            emailRedirectTo: import.meta.env.DEV ? 'http://localhost:8080/' : `${window.location.origin}/`,
+            emailRedirectTo: import.meta.env.DEV ? 'http://localhost:8080/dashboard' : `${window.location.origin}/dashboard`,
             data: {
               // You can add additional user metadata here
             }
@@ -125,7 +125,7 @@ const CustomAuth = ({ onSuccess }: CustomAuthProps) => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: import.meta.env.DEV ? 'http://localhost:8080/' : `${window.location.origin}/`
+                      redirectTo: import.meta.env.DEV ? 'http://localhost:8080/dashboard' : `${window.location.origin}/dashboard`
         }
       })
 
