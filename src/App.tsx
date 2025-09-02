@@ -8,6 +8,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { SessionProvider } from "./contexts/SessionContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import TawkTo from "./components/TawkTo";
+import EnvDebug from "./components/EnvDebug";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import AuthPage from "./pages/Auth";
@@ -46,6 +47,7 @@ const App = () => {
                 widgetId={tawkToWidgetId} 
               />
             )}
+            <EnvDebug />
           </TooltipProvider>
         </SessionProvider>
       </AuthProvider>
