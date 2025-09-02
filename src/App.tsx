@@ -7,6 +7,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { AuthProvider } from "./contexts/AuthContext";
 import { SessionProvider } from "./contexts/SessionContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import TawkTo from "./components/TawkTo";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import AuthPage from "./pages/Auth";
@@ -14,31 +15,42 @@ import Landing from "./pages/Landing";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <SessionProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <Index />
-                </ProtectedRoute>
-              } />
-              <Route path="/auth" element={<AuthPage />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-          <Analytics />
-        </TooltipProvider>
-      </SessionProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  const tawkToPropertyId = import.meta.env.VITE_TAWKTO_PROPERTY_ID;
+  const tawkToWidgetId = import.meta.env.VITE_TAWKTO_WIDGET_ID;
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <SessionProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route path="/dashboard" element={
+                  <ProtectedRoute>
+                    <Index />
+                  </ProtectedRoute>
+                } />
+                <Route path="/auth" element={<AuthPage />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+            <Analytics />
+            {tawkToPropertyId && tawkToWidgetId && (
+              <TawkTo 
+                propertyId={tawkToPropertyId} 
+                widgetId={tawkToWidgetId} 
+              />
+            )}
+          </TooltipProvider>
+        </SessionProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
